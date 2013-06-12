@@ -24,12 +24,18 @@
     background: skyblue;
     border-radius: 2px;
     overflow: hidden;
+    width: 80px;
+    height: 80px;
+    float: left;
   }
   .family {
     margin: 0.2em;
     padding: 0.3em;
     background: khaki;
     border-radius: 2px;
+    width: 80px;
+    height: 80px;
+    float: left;
   }
   .unassigned {
     width: 200px;
@@ -46,7 +52,21 @@
     padding: 1em;
     margin: 0.5em;
     min-width: 8em;
+    max-width: 200px;
     border-radius: 1em;
+    transition: all 0.2s;
+  }
+  .need-companion {
+    border-color: #f90;
+    background: #f90;
+  }
+  .need-family {
+    border-color: #0f9;
+    background: #0f9; 
+  }
+  .extra-companion {
+    border-color: #08c;
+    background: #08c;
   }
   </style>
 </head>
@@ -104,14 +124,16 @@
 
       <navbar></navbar>
 
-      <div class="unassigned">
-        <h2>Unassigned Home Teachers</h2>
+      <div class="unassigned" droppable="unassign">
+        <h2>Unassigned</h2>
         <teacher obj="teacher" ng-repeat="teacher in teachers|unassigned"></teacher>
+        <family fam="fam" ng-repeat="fam in families|unassigned"></family>
       </div>
 
-      <div class="unassigned">
-        <h2>Unassigned Families</h2>
-        <family fam="fam" ng-repeat="fam in families|unassigned"></family>
+      <div class="unassigned" droppable="exclude">
+        <h2>Not currently included</h2>
+        <teacher obj="teacher" ng-repeat="teacher in teachers|notincluded"></teacher>
+        <family fam="fam" ng-repeat="fam in families|notincluded"></family>
       </div>
 
       <div class="companionships">
@@ -162,15 +184,27 @@
 
   app.filter('unassigned', function() {
     return function(items) {
-      var ret = {}
+      var ret = {};
       for (k in items) {
-        if (items[k].companionship == null) {
+        if (items[k].companionship == null && items[k].included) {
           ret[k] = items[k];
         }
       }
       return ret;
     };
   });
+
+  app.filter('notincluded', function() {
+    return function(items) {
+      var ret = {};
+      for (k in items) {
+        if (!items[k].included) {
+          ret[k] = items[k];
+        }
+      }
+      return ret;
+    }
+  })
 
   app.factory('Store', function() {
     this.state = {
@@ -230,7 +264,8 @@
         var teacher = {
           id: Store.nextId(),
           name: name,
-          companionship: null
+          companionship: null,
+          included: true
         };
         $scope.teachers[teacher.id] = teacher;
       });
@@ -243,7 +278,8 @@
         var family = {
           id: Store.nextId(),
           name: name,
-          companionship: null
+          companionship: null,
+          included: true
         };
         $scope.families[family.id] = family;
       });
@@ -267,15 +303,46 @@
       this.addCompanion(companionship, moving);
     }
 
-    this.addCompanion = function(companionship, teacher) {
+    this.unassignFamily = function(family) {
+      if (family.companionship) {
+        // remove existing assignment
+        var old_companionship = Store.state.companionships[family.companionship];
+        delete old_companionship.families[family.id];
+        family.companionship = null;
+      }
+      family.included = true;
+      Store.save();
+    }
+
+    this.unassignTeacher = function(teacher) {
       if (teacher.companionship) {
         // remove existing assignment
         var old_companionship = Store.state.companionships[teacher.companionship];
         delete old_companionship.teachers[teacher.id];
+        teacher.companionship = null;
       }
+      teacher.included = true;
+      Store.save();
+    }
+
+    this.excludeFamily = function(family) {
+      this.unassignFamily(family);
+      family.included = false;
+      Store.save();
+    }
+
+    this.excludeTeacher = function(teacher) {
+      this.unassignTeacher(teacher);
+      teacher.included = false;
+      Store.save();
+    }
+
+    this.addCompanion = function(companionship, teacher) {
+      this.unassignTeacher(teacher);
 
       teacher.companionship = companionship.id;
       companionship.teachers[teacher.id] = true;
+      teacher.included = true;
       Store.save();
     }
 
@@ -286,26 +353,16 @@
         families: {},
         district: null
       };
-      console.log('Created companionship');
-      console.log(companionship.id);
       Store.state.companionships[companionship.id] = companionship;
       return companionship;
     }
 
     this.addFamily = function(companionship, family) {
-      console.log('addFamily');
-      console.log(companionship);
-      console.log(family);
-      if (family.companionship) {
-        // remove existing teachers
-        var old_companionship = Store.state.companionships[family.companionship];
-        delete old_companionship.families[family.id];
-      }
-
-      console.log(companionship);
+      this.unassignFamily(family);
 
       family.companionship = companionship.id;
       companionship.families[family.id] = true;
+      family.included = true;
       Store.save();
     }
 
@@ -348,11 +405,16 @@
   app.directive('family', function(Store, Organizer) {
     return {
       restrict: 'E',
-      template: '<div class="family" draggable data-kind="family" data-id="{{ fam.id }}">{{ fam.name }}</div>',
+      template: '<div class="family" draggable data-kind="family" data-id="{{ fam.id }}">{{ fam.name }}' +
+        '</div>',
       scope: {
         fam: '='
       },
       controller: function($scope) {
+        $scope.show_details = false;
+        $scope.selectMe = function() {
+          $scope.show_details = true;
+        }
       }
     }
   });
@@ -360,7 +422,7 @@
   app.directive('companionship', function(Store, Organizer) {
     return {
       restrict: 'E',
-      template: '<div class="companionship" droppable="receiveDrop">' +
+      template: '<div class="companionship" ng-class="{\'need-companion\': needCompanion(), \'extra-companion\': extraCompanion(), \'need-family\': needFamily()}" droppable="receiveDrop">' +
           '<teacher obj="teacher" ng-repeat="teacher in teachers"></teacher>' +
           '<family fam="fam" ng-repeat="fam in families"></family>' +
         '</div>',
@@ -384,6 +446,16 @@
             $scope.families[id] = Store.state.families[id];
           }
         }, true);
+
+        $scope.needCompanion = function() {
+          return Object.keys($scope.teachers).length < 2;
+        }
+        $scope.extraCompanion = function() {
+          return Object.keys($scope.teachers).length > 2;
+        }
+        $scope.needFamily = function() {
+          return Object.keys($scope.families).length == 0;
+        }
 
         $scope.receiveDrop = function(kind, id) {
           console.log('receive drop');
@@ -430,10 +502,30 @@
     }
   });
 
-  app.controller('OrganizeCtrl', function($scope, Store) {
+  app.controller('OrganizeCtrl', function($scope, Store, Organizer) {
     $scope.teachers = Store.state.teachers;
     $scope.families = Store.state.families;
     $scope.companionships = Store.state.companionships;
+
+    $scope.unassign = function(kind, id) {
+      if (kind == 'family') {
+        var family = $scope.families[id];
+        Organizer.unassignFamily(family);
+      } else if (kind == 'teacher') {
+        var teacher = $scope.teachers[id];
+        Organizer.unassignTeacher(teacher);
+      }
+    }
+
+    $scope.exclude = function(kind, id) {
+      if (kind == 'family') {
+        var family = $scope.families[id];
+        Organizer.excludeFamily(family);
+      } else if (kind == 'teacher') {
+        var teacher = $scope.teachers[id];
+        Organizer.excludeTeacher(teacher);
+      } 
+    }
 
   });
   </script>
