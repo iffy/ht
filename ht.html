@@ -1,0 +1,441 @@
+<!doctype html>
+<html>
+<head>
+  <title>Home Teaching</title>
+  <style>
+  .column {
+    display: inline-block;
+    float: left;
+  }
+  .navbar div {
+    display: inline-block;
+    padding: 1em;
+    background: #08c;
+    color: #fff;
+    margin: 1em;
+  }
+  .navbar div:hover {
+    opacity: 0.9;
+    cursor: pointer;
+  }
+  .teacher {
+    margin: 0.2em;
+    padding: 0.3em;
+    background: skyblue;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .family {
+    margin: 0.2em;
+    padding: 0.3em;
+    background: khaki;
+    border-radius: 2px;
+  }
+  .unassigned {
+    width: 200px;
+    box-shadow: 0px 0px 12px #ccc;
+    padding: 1em;
+  }
+  .unassigned h2 {
+    margin-top: 0;
+  }
+
+  .companionship {
+    display: inline-block;
+    border: 5px solid #ccc;
+    padding: 1em;
+    margin: 0.5em;
+    min-width: 8em;
+    border-radius: 1em;
+  }
+  </style>
+</head>
+<body ng-app="hometeaching">
+
+  <div ng-view></div>
+
+
+  <template name="navbar">
+    <div class="navbar">
+      <div ng-click="nav('/')">Main</div>
+      <div ng-click="nav('/list')">Lists</div>
+      <div ng-click="nav('/organize')">Organize</div>
+    </div>
+  </template>
+
+  <template name="mainTemplate">
+    
+    <navbar></navbar>
+  
+  </template>
+  
+  <template name="listTemplate">
+
+    <navbar></navbar>
+
+    <div class="column">
+      <h2>Home Teachers</h2>
+
+      <h3>Import/Export</h3>
+      <p>Put one name per line</p>
+      <textarea ng-model="teacher_list"></textarea>
+      <button ng-click="updateTeachers()">Update</button>
+
+      <h3>List</h3>
+      <div class="teacher" ng-repeat="teacher in teachers">{{ teacher.name }}</div>
+      
+    </div>
+
+    <div class="column">
+      <h2>Families</h2>
+
+      <h3>Import/Export</h3>
+      <p>Put one name per line</p>
+      <textarea ng-model="family_list"></textarea>
+      <button ng-click="updateFamilies()">Update</button>
+
+      <h3>List</h3>
+      <div class="family" ng-repeat="family in families">{{ family.name }}</div>
+    </div>
+  </template>
+
+
+  <template name="organizeTemplate">
+
+      <navbar></navbar>
+
+      <div class="unassigned">
+        <h2>Unassigned Home Teachers</h2>
+        <teacher obj="teacher" ng-repeat="teacher in teachers|unassigned"></teacher>
+      </div>
+
+      <div class="unassigned">
+        <h2>Unassigned Families</h2>
+        <family fam="fam" ng-repeat="fam in families|unassigned"></family>
+      </div>
+
+      <div class="companionships">
+        <companionship comp="comp" ng-repeat="comp in companionships"></companionship>
+      </div>
+
+  </template>
+
+
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+  <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1/jquery-ui.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular.min.js"></script>
+  <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+  <script>
+  var app = angular.module('hometeaching', []);
+  var atag;
+
+  app.run(function($templateCache, Store) {
+    var tags = document.getElementsByTagName('template');
+    for (var i=0; i < tags.length; i++) {
+      var tag = tags[i];
+      $templateCache.put(tag.getAttribute('name')+'.html', tag.innerHTML);
+    }
+
+    Store.load();
+  })
+
+  app.config(function($routeProvider, $locationProvider) {
+    $locationProvider.html5Mode(false).hashPrefix('');
+
+    $routeProvider
+      .when('/', {
+        templateUrl: 'mainTemplate.html',
+        controller: 'MainCtrl',
+      })
+      .when('/list', {
+        templateUrl: 'listTemplate.html',
+        controller: 'ListCtrl',
+      })
+      .when('/organize', {
+        templateUrl: 'organizeTemplate.html',
+        controller: 'OrganizeCtrl',
+      })
+      .otherwise({
+        redirectTo: '/'
+      });
+  });
+
+  app.filter('unassigned', function() {
+    return function(items) {
+      var ret = {}
+      for (k in items) {
+        if (items[k].companionship == null) {
+          ret[k] = items[k];
+        }
+      }
+      return ret;
+    };
+  });
+
+  app.factory('Store', function() {
+    this.state = {
+      teachers: {},
+      companionships: {},
+      districts: {},
+      families: {},
+      lastid: 1
+    };
+    this.save = function() {
+      localStorage['state'] = JSON.stringify(this.state);
+      console.log(this.state);
+    };
+    this.load = function() {
+      if (localStorage['state'] != undefined) {
+        var loaded = JSON.parse(localStorage['state']);
+        console.log(loaded);
+        for (k in loaded) {
+          this.state[k] = loaded[k];
+        }
+      }
+    };
+    this.nextId = function() {
+      this.state.lastid += 1;
+      return this.state.lastid;
+    }
+    return this;
+  });
+
+
+  app.directive('navbar', function() {
+    return {
+      restrict: 'E',
+      templateUrl: 'navbar.html',
+      controller: function($scope, $location) {
+        $scope.nav = function(where) {
+          $location.path(where);
+        }
+      }
+    }
+  });
+
+  app.controller('MainCtrl', function($scope, $location) {
+    //$location.path('/list');
+  });
+
+
+  app.controller('ListCtrl', function($scope, $location, Store) {
+    $scope.teachers = Store.state.teachers;
+    $scope.families = Store.state.families;
+    $scope.teacher_list = '';
+    $scope.family_list = '';
+
+    $scope.updateTeachers = function() {
+      var teachers = $scope.teacher_list.split('\n');
+      teachers.map(function(name) {
+        var teacher = {
+          id: Store.nextId(),
+          name: name,
+          companionship: null
+        };
+        $scope.teachers[teacher.id] = teacher;
+      });
+      Store.save();
+    }
+
+    $scope.updateFamilies = function() {
+      var families = $scope.family_list.split('\n');
+      families.map(function(name) {
+        var family = {
+          id: Store.nextId(),
+          name: name,
+          companionship: null
+        };
+        $scope.families[family.id] = family;
+      });
+      Store.save();
+    }
+  });
+
+
+  app.factory('Organizer', function(Store) {
+    this.assignTogether = function(staying, moving) {
+      var companionship;
+
+      if (staying.companionship == null) {
+        // making a new companionship
+        companionship = this.createCompanionship();
+        this.addCompanion(companionship, staying);
+      } else {
+        // use old companionship
+        companionship = Store.state.companionships[staying.companionship];
+      }
+      this.addCompanion(companionship, moving);
+    }
+
+    this.addCompanion = function(companionship, teacher) {
+      if (teacher.companionship) {
+        // remove existing assignment
+        var old_companionship = Store.state.companionships[teacher.companionship];
+        delete old_companionship.teachers[teacher.id];
+      }
+
+      teacher.companionship = companionship.id;
+      companionship.teachers[teacher.id] = true;
+      Store.save();
+    }
+
+    this.createCompanionship = function() {
+      var companionship = {
+        id: Store.nextId(),
+        teachers: {},
+        families: {},
+        district: null
+      };
+      console.log('Created companionship');
+      console.log(companionship.id);
+      Store.state.companionships[companionship.id] = companionship;
+      return companionship;
+    }
+
+    this.addFamily = function(companionship, family) {
+      console.log('addFamily');
+      console.log(companionship);
+      console.log(family);
+      if (family.companionship) {
+        // remove existing teachers
+        var old_companionship = Store.state.companionships[family.companionship];
+        delete old_companionship.families[family.id];
+      }
+
+      console.log(companionship);
+
+      family.companionship = companionship.id;
+      companionship.families[family.id] = true;
+      Store.save();
+    }
+
+    this.addFamilyToTeacher = function(family, teacher) {
+      var companionship;
+      if (teacher.companionship == null) {
+        var companionship = this.createCompanionship();
+        this.addCompanion(companionship, teacher);
+      } else {
+        companionship = Store.state.companionships[teacher.companionship];
+
+      }
+      this.addFamily(companionship, family);
+    }
+    return this;
+  });
+
+
+  app.directive('teacher', function(Store, Organizer) {
+    return {
+      restrict: 'E',
+      template: '<div class="teacher" draggable droppable="receiveDrop" data-kind="teacher" data-id="{{ teacher.id }}">{{ teacher.name }}</div>',
+      scope: {
+        teacher: '=obj'
+      },
+      controller: function($scope) {
+        $scope.receiveDrop = function(kind, id) {
+          if (kind == 'teacher') {
+            Organizer.assignTogether($scope.teacher, Store.state.teachers[id]);
+          } else if (kind == 'family') {
+            Organizer.addFamilyToTeacher(Store.state.families[id], $scope.teacher);
+          } else {
+            console.log("I don't know what to do with that");
+          }
+        }
+      }
+    }
+  });
+
+  app.directive('family', function(Store, Organizer) {
+    return {
+      restrict: 'E',
+      template: '<div class="family" draggable data-kind="family" data-id="{{ fam.id }}">{{ fam.name }}</div>',
+      scope: {
+        fam: '='
+      },
+      controller: function($scope) {
+      }
+    }
+  });
+
+  app.directive('companionship', function(Store, Organizer) {
+    return {
+      restrict: 'E',
+      template: '<div class="companionship" droppable="receiveDrop">' +
+          '<teacher obj="teacher" ng-repeat="teacher in teachers"></teacher>' +
+          '<family fam="fam" ng-repeat="fam in families"></family>' +
+        '</div>',
+      scope: {
+        comp: '='
+      },
+      controller: function($scope) {
+        $scope.teachers = {}
+        $scope.families = {}
+
+        $scope.$watch('comp.teachers', function() {
+          $scope.teachers = {};
+          for (id in $scope.comp.teachers) {
+            $scope.teachers[id] = Store.state.teachers[id];
+          }
+        }, true);
+
+        $scope.$watch('comp.families', function() {
+          $scope.families = {};
+          for (id in $scope.comp.families) {
+            $scope.families[id] = Store.state.families[id];
+          }
+        }, true);
+
+        $scope.receiveDrop = function(kind, id) {
+          console.log('receive drop');
+          console.log(kind);
+          if (kind == 'teacher') {
+            var teacher = Store.state.teachers[id];
+            Organizer.addCompanion($scope.comp, teacher);
+          } else if (kind == 'family') {
+            Organizer.addFamily($scope.comp, Store.state.families[id]);
+          } else {
+            console.log('I dont know what to do with that')
+          }
+        }
+      }
+    }
+  });
+
+  app.directive('draggable', function() {
+    return {
+      restrict: 'A',
+      link: function(scope, element, attrs) {
+        element.draggable({
+          revert: true,
+          zIndex: 100,
+        });
+      }
+    }
+  });
+
+  app.directive('droppable', function() {
+    return {
+      restrict: 'A',
+      link: function(scope, element, attrs) {
+        $(element).droppable({
+          drop: function(event, ui) {
+            var id = $(ui.draggable).attr('data-id');
+            var kind = $(ui.draggable).attr('data-kind');
+            var func = scope[attrs.droppable];
+            func(kind, id);
+            scope.$apply();
+          }
+        });
+      }
+    }
+  });
+
+  app.controller('OrganizeCtrl', function($scope, Store) {
+    $scope.teachers = Store.state.teachers;
+    $scope.families = Store.state.families;
+    $scope.companionships = Store.state.companionships;
+
+  });
+  </script>
+</body>
+</html>
