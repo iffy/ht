@@ -41,6 +41,7 @@
     width: 200px;
     box-shadow: 0px 0px 12px #ccc;
     padding: 1em;
+    clear: both;
   }
   .unassigned h2 {
     margin-top: 0;
@@ -140,13 +141,19 @@
         <companionship comp="comp" ng-repeat="comp in companionships"></companionship>
       </div>
 
+      <div class="changes" style="position: fixed; right: 0; top: 0;">
+        <h2>Changes</h2>
+        <button ng-click="clearChanges()">Clear</button>
+        <div class="change" ng-repeat="change in changes">{{ change|niceChange }}</div>
+      </div>
+
   </template>
 
 
   <script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
   <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1/jquery-ui.min.js"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.2/jquery.ui.touch-punch.min.js"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular.min.js"></script>
-  <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
   <script>
   var app = angular.module('hometeaching', []);
   var atag;
@@ -212,16 +219,15 @@
       companionships: {},
       districts: {},
       families: {},
+      changes: {},
       lastid: 1
     };
     this.save = function() {
       localStorage['state'] = JSON.stringify(this.state);
-      console.log(this.state);
     };
     this.load = function() {
       if (localStorage['state'] != undefined) {
         var loaded = JSON.parse(localStorage['state']);
-        console.log(loaded);
         for (k in loaded) {
           this.state[k] = loaded[k];
         }
@@ -287,8 +293,80 @@
     }
   });
 
+  app.filter('niceChange', function(Store) {
+    var state = Store.state;
+    return function(x) {
+      var obj;
+      if (x.kind == 'family') {
+        obj = state.families[x.id];
+      } else if (x.kind == 'teacher') {
+        obj = state.teachers[x.id];
+      } else {
+        return '?';
+      }
+      if (x.attr == 'companionship') {
+        if (x.newval ==  null) {
+          return obj.name + ' is no longer assigned.';
+        } else {
+          var companionship = state.companionships[x.newval];
+          if (x.kind == 'family') {
+            var teachers = [];
+            for (id in companionship.teachers) {
+              teachers.push(state.teachers[id].name);
+            }
+            teachers = teachers.join(' and ');
+            if (!teachers.length) {
+              teachers = 'nobody';
+            }
+            return obj.name + ' is now being taught by ' + teachers;
+          } else if (x.kind == 'teacher') {
+            var companions = [];
+            for (id in companionship.teachers) {
+              if (id != x.id) {
+                companions.push(state.teachers[id].name);
+              }
+            }
+            companions = companions.join(' and ');
+            if (!companions.length) {
+              companions = 'nobody';
+            }
+            return obj.name + ' is now companions with ' + companions;
+          }
+        }
+      }
+      return '';
+    };
+  })
 
   app.factory('Organizer', function(Store) {
+    this.recordChange = function(kind, id, attr, oldval, newval) {
+      var key = kind + '.' + id + '.' + attr;
+      if (Store.state.changes[key]) {
+        // modify existing change
+        var x = Store.state.changes[key];
+        x.newval = newval;
+        if (x.newval == x.oldval) {
+          delete Store.state.changes[key];
+        }
+      } else {
+        // add new change
+        Store.state.changes[key] = {
+          kind: kind,
+          id: id,
+          attr: attr,
+          oldval: oldval,
+          newval: newval
+        };
+      }
+    };
+
+    this.clearChanges = function() {
+      var keys = Object.keys(Store.state.changes);
+      keys.forEach(function(x) {
+        delete Store.state.changes[x];
+      });
+    };
+
     this.assignTogether = function(staying, moving) {
       var companionship;
 
@@ -308,7 +386,10 @@
         // remove existing assignment
         var old_companionship = Store.state.companionships[family.companionship];
         delete old_companionship.families[family.id];
+        this.maybeDeleteCompanionship(old_companionship);
         family.companionship = null;
+        this.recordChange('family', family.id, 'companionship',
+                          old_companionship.id, null);
       }
       family.included = true;
       Store.save();
@@ -319,7 +400,10 @@
         // remove existing assignment
         var old_companionship = Store.state.companionships[teacher.companionship];
         delete old_companionship.teachers[teacher.id];
+        this.maybeDeleteCompanionship(old_companionship);
         teacher.companionship = null;
+        this.recordChange('teacher', teacher.id, 'companionship',
+                          old_companionship.id, null);
       }
       teacher.included = true;
       Store.save();
@@ -327,13 +411,17 @@
 
     this.excludeFamily = function(family) {
       this.unassignFamily(family);
-      family.included = false;
+      if (family.included) {
+        family.included = false;
+      }
       Store.save();
     }
 
     this.excludeTeacher = function(teacher) {
       this.unassignTeacher(teacher);
-      teacher.included = false;
+      if (teacher.included) {
+        teacher.included = false;
+      }
       Store.save();
     }
 
@@ -342,7 +430,11 @@
 
       teacher.companionship = companionship.id;
       companionship.teachers[teacher.id] = true;
-      teacher.included = true;
+      this.recordChange('teacher', teacher.id, 'companionship', null,
+                        companionship.id);
+      if (!teacher.included) {
+        teacher.included = true;
+      }
       Store.save();
     }
 
@@ -357,12 +449,24 @@
       return companionship;
     }
 
+    this.maybeDeleteCompanionship = function(companionship) {
+      if (Object.keys(companionship.teachers).length == 0 &&
+          Object.keys(companionship.families).length == 0) {
+        delete Store.state.companionships[companionship.id];
+        Store.state.save();
+      }
+    }
+
     this.addFamily = function(companionship, family) {
       this.unassignFamily(family);
 
       family.companionship = companionship.id;
       companionship.families[family.id] = true;
-      family.included = true;
+      this.recordChange('family', family.id, 'companionship',
+                        null, companionship.id);
+      if (!family.included) {
+        family.included = true;
+      }
       Store.save();
     }
 
@@ -458,8 +562,6 @@
         }
 
         $scope.receiveDrop = function(kind, id) {
-          console.log('receive drop');
-          console.log(kind);
           if (kind == 'teacher') {
             var teacher = Store.state.teachers[id];
             Organizer.addCompanion($scope.comp, teacher);
@@ -506,6 +608,7 @@
     $scope.teachers = Store.state.teachers;
     $scope.families = Store.state.families;
     $scope.companionships = Store.state.companionships;
+    $scope.changes = Store.state.changes;
 
     $scope.unassign = function(kind, id) {
       if (kind == 'family') {
@@ -525,6 +628,10 @@
         var teacher = $scope.teachers[id];
         Organizer.excludeTeacher(teacher);
       } 
+    }
+
+    $scope.clearChanges = function() {
+      Organizer.clearChanges();
     }
 
   });
