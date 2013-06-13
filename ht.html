@@ -4,10 +4,6 @@
   <title>Home Teaching</title>
   <link rel="stylesheet" href="css/pure-min.css">
   <style>
-  .column {
-    display: inline-block;
-    float: left;
-  }
   .teacher {
     margin: 0.2em;
     padding: 0.3em;
@@ -25,6 +21,11 @@
     height: 80px;
     width: 80px;
     display: inline-block;
+  }
+
+  .scroller {
+    overflow: scroll;
+    height: 24em;
   }
 
   .section {
@@ -109,8 +110,8 @@
 
   <template name="navbar">
     <div class="navbar">
-      <button class="pure-button pure-button-nav" ng-click="nav('/')">Organize</button>
-      <button class="pure-button pure-button-nav" ng-click="nav('/list')">Lists</button>
+      <button class="pure-button pure-button-nav" ng-click="nav('/')">Home Teaching</button>
+      <button class="pure-button pure-button-nav" ng-click="nav('/list')">People</button>
     </div>
   </template>
 
@@ -119,31 +120,28 @@
 
     <navbar></navbar>
 
-    <div class="column">
-      <h2>Home Teachers</h2>
+    <div class="section">
+      <h2>Import from lds.org</h2>
+      <p>
+        You must <a href="https://signin.lds.org/SSOSignIn/" target="_blank">sign in to lds.org</a> before these buttons work.
+      </p>
 
-      <h3>Import/Export</h3>
-      <p>Put one name per line</p>
-      <textarea ng-model="teacher_list"></textarea>
-      <button class="pure-button" ng-click="updateTeachers()">Add Teachers</button>
+      <div class="pure-g">
+        <div class="pure-u-1-2">
+          <h3>Families</h3>
+          <button class="pure-button" ng-click="refreshFamilyList()">Refresh</button>
+          <div class="scroller">
+            <div ng-repeat="family in families| orderBy:'name'">{{ family.name }}</div>
+          </div>
+        </div>
+        <div class="pure-u-1-2">
+          <h3>Home Teachers</h3>
+          <button class="pure-button">Refresh</button>
+          <div class="scroller">
+          </div>
+        </div>
+      </div>
 
-      <h3>List</h3>
-      <div class="teacher" ng-repeat="teacher in teachers">{{ teacher.name }}</div>
-      
-
-      <button class="pure-button" ng-click="doStuff()">Do stuff</button>
-    </div>
-
-    <div class="column">
-      <h2>Families</h2>
-
-      <h3>Import/Export</h3>
-      <p>Put one name per line</p>
-      <textarea ng-model="family_list"></textarea>
-      <button class="pure-button" ng-click="updateFamilies()">Add Families</button>
-
-      <h3>List</h3>
-      <div class="family" ng-repeat="family in families">{{ family.name }}</div>
     </div>
   </template>
 

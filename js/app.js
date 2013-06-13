@@ -32,7 +32,7 @@ app.filter('unassigned', function() {
   return function(items) {
     var ret = {};
     for (k in items) {
-      if (items[k].companionship == null && items[k].included) {
+      if (items[k].companionship == null && items[k].other_group == null) {
         ret[k] = items[k];
       }
     }
@@ -44,7 +44,7 @@ app.filter('notincluded', function() {
   return function(items) {
     var ret = {};
     for (k in items) {
-      if (!items[k].included) {
+      if (items[k].other_group == 'excluded') {
         ret[k] = items[k];
       }
     }
@@ -59,6 +59,11 @@ app.factory('Store', function() {
     districts: {},
     families: {},
     changes: {},
+    photos: {},
+    lds: {
+      wardUnitNo: null,
+      members: [],
+    },
     lastid: 1
   };
   this.save = function() {
@@ -74,7 +79,7 @@ app.factory('Store', function() {
   };
   this.nextId = function() {
     this.state.lastid += 1;
-    return this.state.lastid;
+    return 'X.' + this.state.lastid;
   }
   return this;
 });
@@ -97,13 +102,74 @@ app.controller('MainCtrl', function($scope, $location) {
 });
 
 
-app.factory('LDSorg', function($http) {
-  this.request = function() {
-    $http.get('https://www.lds.org/directory/services/ludrs/unit/current-user-ward-stake/').then(function(x) {
-      console.log(x);
-    })
-    console.log('req');
+app.factory('LDSorg', function($http, $q, Store) {
+  this.getWardUnitNo = function() {
+    if (Store.state.lds.wardUnitNo) {
+      var d = $q.defer();
+      d.resolve(Store.state.lds.wardUnitNo);
+      return d.promise;
+    }
+    return $http.get('https://www.lds.org/directory/services/ludrs/unit/current-user-ward-stake/')
+      .then(function(x) {
+        Store.state.lds.wardUnitNo = x.data.wardUnitNo;
+        Store.save();
+      }.bind(this), function(err) {
+        alert('You need to log in to lds.org');
+      });
+  }
+  this.fetchFamilies = function() {
+    return this.getWardUnitNo().then(function() {
+      return $http.get('https://www.lds.org/directory/services/ludrs/mem/member-list/' + Store.state.lds.wardUnitNo)
+        .then(function(x) {
+          return x.data;
+        }.bind(this), function(err) {
+          alert('You need to log in to lds.org');
+        });
+    }.bind(this));
   };
+
+
+  this.loadPhotos = function(ids) {
+    ids = angular.copy(ids);
+    
+    function getSet() {
+      var set = [];
+      while (ids.length && set.length < 20) {
+        // don't fetch if we already have it
+        var id = ids.shift();
+        if (Store.state.lds.photoURLs[id]) {
+          // we already have it
+          console.log('not fetching; we already have it');
+        } else {
+          set.push(id);
+        }
+      }
+      return set;
+    }
+    
+    var set = getSet();
+    if (!set.length) {
+      var d = $q.defer();
+      d.resolve(null);
+      return d.promise;
+    }
+    return $http.get('https://www.lds.org/directory/services/ludrs/photo/url/'+set.join(',')+'/individual')
+      .then(function(x) {
+        if (Object.prototype.toString.call(x.data) !== '[object Array]') {
+          x.data = [x.data];
+        }
+        x.data.forEach(function(x) {
+          Store.state.lds.photoURLs[x.individualId] = {
+            large: x.largeUri,
+            medium: x.mediumUri,
+            original: x.originalUri,
+            thumbnail: x.thumbnailUri,
+          }
+        }.bind(this))
+        Store.save();
+        return this.loadPhotos(ids);
+      }.bind(this));
+  }
   return this;
 })
 
@@ -113,6 +179,39 @@ app.controller('ListCtrl', function($scope, $location, Store, LDSorg) {
   $scope.families = Store.state.families;
   $scope.teacher_list = '';
   $scope.family_list = '';
+  $scope.lds = Store.state.lds;
+
+  $scope.refreshFamilyList = function() {
+    LDSorg.fetchFamilies().then(function(x) {
+      var existing = Object.keys($scope.families).filter(function(x) {
+        // exclude hand-added ones
+        return x.substr(0,2) != 'X.';
+      });
+      x.forEach(function(household) {
+        var id = '' + household.headOfHouseIndividualId;
+        if (existing.indexOf(id) != -1) {
+          existing.splice(existing.indexOf(id), 1);
+        }
+        if ($scope.families[id]) {
+          // already exists
+          $scope.families[id][name] = household.coupleName;
+        } else {
+          // new record
+          $scope.families[id] = {
+            id: id,
+            name: household.coupleName,
+            companionship: null,
+            other_group: null,
+          };
+        }
+      });
+      // remove ids not encountered
+      existing.forEach(function(id) {
+        Organizer.familyMoved($scope.families[id]);
+      });
+      Store.save();
+    })
+  }
 
   $scope.updateTeachers = function() {
     var teachers = $scope.teacher_list.split('\n');
@@ -121,7 +220,7 @@ app.controller('ListCtrl', function($scope, $location, Store, LDSorg) {
         id: Store.nextId(),
         name: name,
         companionship: null,
-        included: true
+        other_group: null
       };
       $scope.teachers[teacher.id] = teacher;
     });
@@ -135,15 +234,23 @@ app.controller('ListCtrl', function($scope, $location, Store, LDSorg) {
         id: Store.nextId(),
         name: name,
         companionship: null,
-        included: true
+        other_group: null
       };
       $scope.families[family.id] = family;
     });
     Store.save();
   }
 
-  $scope.doStuff = function() {
-    LDSorg.request();
+  $scope.loadPhoto = function(id) {
+    LDSorg.loadPhotos([id]);
+  }
+  $scope.imageSrc = function(lds_id) {
+    var item = Store.state.lds.photoURLs[lds_id];
+    if (item === undefined) {
+      return '';
+    } else {
+      return 'https://www.lds.org' + item.medium;
+    }
   }
 });
 
@@ -245,7 +352,7 @@ app.factory('Organizer', function(Store) {
       this.recordChange('family', family.id, 'companionship',
                         old_companionship.id, null);
     }
-    family.included = true;
+    family.other_group = null;
     Store.save();
   }
 
@@ -259,23 +366,33 @@ app.factory('Organizer', function(Store) {
       this.recordChange('teacher', teacher.id, 'companionship',
                         old_companionship.id, null);
     }
-    teacher.included = true;
+    teacher.other_group = null;
+    Store.save();
+  }
+
+  // remove a family from the ward
+  this.familyMoved = function(family) {
+    this.unassignFamily(family);
+    delete Store.state.families[family.id];
+    Store.save();
+  }
+
+  // remove a teacher from the ward
+  this.teacherMoved = function(teacher) {
+    this.unassignTeacher(teacher);
+    delete Store.state.teachers[teacher.id];
     Store.save();
   }
 
   this.excludeFamily = function(family) {
     this.unassignFamily(family);
-    if (family.included) {
-      family.included = false;
-    }
+    family.other_group = 'excluded';
     Store.save();
   }
 
   this.excludeTeacher = function(teacher) {
     this.unassignTeacher(teacher);
-    if (teacher.included) {
-      teacher.included = false;
-    }
+    teacher.other_group = 'excluded';
     Store.save();
   }
 
@@ -286,9 +403,7 @@ app.factory('Organizer', function(Store) {
     companionship.teachers[teacher.id] = true;
     this.recordChange('teacher', teacher.id, 'companionship', null,
                       companionship.id);
-    if (!teacher.included) {
-      teacher.included = true;
-    }
+    teacher.other_group = null;
     Store.save();
   }
 
@@ -318,9 +433,7 @@ app.factory('Organizer', function(Store) {
     companionship.families[family.id] = true;
     this.recordChange('family', family.id, 'companionship',
                       null, companionship.id);
-    if (!family.included) {
-      family.included = true;
-    }
+    family.other_group = null;
     Store.save();
   }
 
