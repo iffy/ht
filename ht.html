@@ -2,49 +2,58 @@
 <html>
 <head>
   <title>Home Teaching</title>
+  <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.2.0/pure-min.css">
   <style>
   .column {
     display: inline-block;
     float: left;
-  }
-  .navbar div {
-    display: inline-block;
-    padding: 1em;
-    background: #08c;
-    color: #fff;
-    margin: 1em;
-  }
-  .navbar div:hover {
-    opacity: 0.9;
-    cursor: pointer;
   }
   .teacher {
     margin: 0.2em;
     padding: 0.3em;
     background: skyblue;
     border-radius: 2px;
-    overflow: hidden;
-    width: 80px;
-    height: 80px;
-    float: left;
   }
   .family {
     margin: 0.2em;
     padding: 0.3em;
     background: khaki;
     border-radius: 2px;
-    width: 80px;
+  }
+  .organizer .teacher,.organizer .family {
+    overflow: hidden;
     height: 80px;
-    float: left;
+    width: 80px;
+    display: inline-block;
   }
-  .unassigned {
-    width: 200px;
-    box-shadow: 0px 0px 12px #ccc;
-    padding: 1em;
+
+  .section {
     clear: both;
+    padding: 1em;
+    border: 2px dashed transparent;
+    border-radius: 1em;
+    transition: all 0.2s;
   }
-  .unassigned h2 {
+  .section h2 {
+    clear: both;
     margin-top: 0;
+  }
+  .section.collapsed {
+    opacity: 0.2;
+  }
+
+  .section.drop-hover {
+    border-color: #08c;
+    background: rgba(0, 127, 200, 0.1);
+  }
+
+  .teacher.drop-hover {
+    opacity: 0.5;
+  }
+
+  .companionship.drop-hover {
+    box-shadow: 0px 0px 12px #ccc;
+    -webkit-transform: scale(1.1);
   }
 
   .companionship {
@@ -69,6 +78,28 @@
     border-color: #08c;
     background: #08c;
   }
+
+  .side-panel {
+    box-shadow: 0px 0px 12px #ccc;
+  }
+  .side-panel .inner {
+    padding: 1em;
+  }
+  .main-panel {
+    border: 0px solid #000;
+  }
+  .pure-button {
+    border-radius: 4px;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+  }
+  .pure-button-danger {
+    color: #fff;
+    background: rgb(202, 60, 60);
+  }
+  .pure-button-nav {
+    color: #fff;
+    background: #08c;
+  }
   </style>
 </head>
 <body ng-app="hometeaching">
@@ -78,17 +109,11 @@
 
   <template name="navbar">
     <div class="navbar">
-      <div ng-click="nav('/')">Main</div>
-      <div ng-click="nav('/list')">Lists</div>
-      <div ng-click="nav('/organize')">Organize</div>
+      <button class="pure-button pure-button-nav" ng-click="nav('/')">Organize</button>
+      <button class="pure-button pure-button-nav" ng-click="nav('/list')">Lists</button>
     </div>
   </template>
 
-  <template name="mainTemplate">
-    
-    <navbar></navbar>
-  
-  </template>
   
   <template name="listTemplate">
 
@@ -100,7 +125,7 @@
       <h3>Import/Export</h3>
       <p>Put one name per line</p>
       <textarea ng-model="teacher_list"></textarea>
-      <button ng-click="updateTeachers()">Update</button>
+      <button class="pure-button" ng-click="updateTeachers()">Add Teachers</button>
 
       <h3>List</h3>
       <div class="teacher" ng-repeat="teacher in teachers">{{ teacher.name }}</div>
@@ -113,7 +138,7 @@
       <h3>Import/Export</h3>
       <p>Put one name per line</p>
       <textarea ng-model="family_list"></textarea>
-      <button ng-click="updateFamilies()">Update</button>
+      <button class="pure-button" ng-click="updateFamilies()">Add Families</button>
 
       <h3>List</h3>
       <div class="family" ng-repeat="family in families">{{ family.name }}</div>
@@ -125,26 +150,42 @@
 
       <navbar></navbar>
 
-      <div class="unassigned" droppable="unassign">
-        <h2>Unassigned</h2>
-        <teacher obj="teacher" ng-repeat="teacher in teachers|unassigned"></teacher>
-        <family fam="fam" ng-repeat="fam in families|unassigned"></family>
-      </div>
+      <div class="pure-g organizer">
 
-      <div class="unassigned" droppable="exclude">
-        <h2>Not currently included</h2>
-        <teacher obj="teacher" ng-repeat="teacher in teachers|notincluded"></teacher>
-        <family fam="fam" ng-repeat="fam in families|notincluded"></family>
-      </div>
+        <div class="side-panel pure-u-1-5">
+          <div class="inner">
+            <div class="section" droppable="unassign" ng-class="{collapsed: hide_unassigned}">
+              <h2 ng-click="hide_unassigned=!hide_unassigned">Unassigned</h2>
+              <div ng-hide="hide_unassigned">
+                <teacher obj="teacher" ng-repeat="teacher in teachers|unassigned"></teacher>
+                <family fam="fam" ng-repeat="fam in families|unassigned"></family>
+              </div>
+            </div>
 
-      <div class="companionships">
-        <companionship comp="comp" ng-repeat="comp in companionships"></companionship>
-      </div>
+            <div class="section" droppable="exclude" ng-class="{collapsed: !show_excluded}">
+              <h2 ng-click="show_excluded=!show_excluded">Not currently included</h2>
+              <div ng-show="show_excluded">
+                <teacher obj="teacher" ng-repeat="teacher in teachers|notincluded"></teacher>
+                <family fam="fam" ng-repeat="fam in families|notincluded"></family>
+              </div>
+            </div>
 
-      <div class="changes" style="position: fixed; right: 0; top: 0;">
-        <h2>Changes</h2>
-        <button ng-click="clearChanges()">Clear</button>
-        <div class="change" ng-repeat="change in changes">{{ change|niceChange }}</div>
+            <div class="section" ng-class="{collapsed: hide_changes}">
+              <h2 ng-click="hide_changes=!hide_changes">Changes</h2>
+              <div ng-hide="hide_changes">
+                <button class="pure-button pure-button-danger" ng-click="clearChanges()">Clear</button>
+                <ul>
+                <li class="change" ng-repeat="change in changes">{{ change|niceChange }}</li>
+              </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="main-panel pure-u-4-5 companionships">
+          <companionship comp="comp" ng-repeat="comp in companionships"></companionship>
+        </div>
+
       </div>
 
   </template>
@@ -172,15 +213,11 @@
     $locationProvider.html5Mode(false).hashPrefix('');
 
     $routeProvider
-      .when('/', {
-        templateUrl: 'mainTemplate.html',
-        controller: 'MainCtrl',
-      })
       .when('/list', {
         templateUrl: 'listTemplate.html',
         controller: 'ListCtrl',
       })
-      .when('/organize', {
+      .when('/', {
         templateUrl: 'organizeTemplate.html',
         controller: 'OrganizeCtrl',
       })
@@ -453,7 +490,7 @@
       if (Object.keys(companionship.teachers).length == 0 &&
           Object.keys(companionship.families).length == 0) {
         delete Store.state.companionships[companionship.id];
-        Store.state.save();
+        Store.save();
       }
     }
 
@@ -598,7 +635,8 @@
             var func = scope[attrs.droppable];
             func(kind, id);
             scope.$apply();
-          }
+          },
+          hoverClass: 'drop-hover'
         });
       }
     }
