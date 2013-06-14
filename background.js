@@ -5,8 +5,8 @@ function start(tab) {
     chrome.windows.create({
         'url': 'ht.html',
         'type': 'popup',
-        'width': 300,
-        'height': 600
+        'width': 1400,
+        'height': 1024
     }, function(y) {
         console.log('made window');
     });

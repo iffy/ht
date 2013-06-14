@@ -29,6 +29,12 @@
     vertical-align: top;
     border-radius: 4px;
   }
+  .demo {
+    margin: 0.3em;
+    padding: 1em;
+    border-radius: 4px;
+    display: inline-block;
+  }
 
   h1,h2,h3,h4,h5 {
     margin-left: 0.3em;
@@ -59,6 +65,8 @@
     clear: both;
     margin-top: 0;
   }
+  .organizer .section .body {
+  }
   .section.collapsed {
     opacity: 0.2;
   }
@@ -76,6 +84,13 @@
     border-color: #000;
   }
 
+  .new-companion-drop.drop-hover {
+    background: #08c;
+    color: #fff;
+    border-color: #08c;
+  }
+
+  .new-companion-drop,
   .companionship {
     display: inline-block;
     vertical-align: top;
@@ -86,6 +101,14 @@
     border-radius: 1em;
     transition: all 0.2s;
   }
+
+  .new-companion-drop {
+    width: 120px;
+    height: 120px;
+    text-align: center;
+    vertical-align: middle;
+  }
+
   .need-companion {
     border-color: #f90;
     background: #f90;
@@ -154,7 +177,7 @@
           <h3>Families</h3>
           <button class="pure-button" ng-click="refreshFamilyList()">Refresh</button>
           <div>
-            <div class="family" ng-repeat="family in families| orderBy:'name'" ng-class="{excluded: family.other_group!=null}" ng-click="toggleFamilyInclusion(family)">{{ family.name }}</div>
+            <div class="family" ng-repeat="family in families|toArray|orderBy:'name'" ng-class="{excluded: family.other_group!=null}" ng-click="toggleFamilyInclusion(family)">{{ family.name }}</div>
           </div>
         </div>
         <div class="pure-u-1-2">
@@ -164,7 +187,7 @@
           <div ng-repeat="group in possible_groups" ng-click="toggleGroup(group)" class="list-item choice" ng-class="{selected: usingGroup(group)}">{{ group.name }}</div>
           <h4>Available teachers</h4>
           <div>
-            <div class="teacher" ng-repeat="teacher in teachers" ng-class="{excluded: teacher.other_group!=null}" ng-click="toggleTeacherInclusion(teacher)">{{ teacher.name }}</div>
+            <div class="teacher" ng-repeat="teacher in teachers|toArray|orderBy:'name'" ng-class="{excluded: teacher.other_group!=null}" ng-click="toggleTeacherInclusion(teacher)">{{ teacher.name }}</div>
           </div>
         </div>
       </div>
@@ -187,23 +210,23 @@
 
             <div class="section" droppable="unassign" ng-class="{collapsed: hide_unassigned}">
               <h2 ng-click="hide_unassigned=!hide_unassigned">Unassigned</h2>
-              <div ng-hide="hide_unassigned">
-                <teacher obj="teacher" ng-repeat="teacher in teachers|toArray|filter:searchText|unassigned"></teacher>
-                <family fam="fam" ng-repeat="fam in families|toArray|filter:searchText|unassigned"></family>
+              <div ng-hide="hide_unassigned" class="body">
+                <teacher obj="teacher" ng-repeat="teacher in teachers|toArray|filter:searchText|unassigned|orderBy:'name'"></teacher>
+                <family fam="fam" ng-repeat="fam in families|toArray|filter:searchText|unassigned|orderBy:'name'"></family>
               </div>
             </div>
 
             <div class="section" droppable="exclude" ng-class="{collapsed: !show_excluded}">
               <h2 ng-click="show_excluded=!show_excluded">Not currently included</h2>
-              <div ng-show="show_excluded">
-                <teacher obj="teacher" ng-repeat="teacher in teachers|toArray|filter:searchText|inGroup:'excluded'"></teacher>
-                <family fam="fam" ng-repeat="fam in families|toArray|filter:searchText|inGroup:'excluded'"></family>
+              <div ng-show="show_excluded" class="body">
+                <teacher obj="teacher" ng-repeat="teacher in teachers|toArray|filter:searchText|inGroup:'excluded'|orderBy:'name'"></teacher>
+                <family fam="fam" ng-repeat="fam in families|toArray|filter:searchText|inGroup:'excluded'|orderBy:'name'"></family>
               </div>
             </div>
 
             <div class="section" ng-class="{collapsed: hide_changes}">
               <h2 ng-click="hide_changes=!hide_changes">Changes</h2>
-              <div ng-hide="hide_changes">
+              <div ng-hide="hide_changes" class="body">
                 <button class="pure-button pure-button-danger" ng-click="clearChanges()">Clear</button>
                 <ul>
                 <li class="change" ng-repeat="change in changes">{{ change|niceChange }}</li>
@@ -216,6 +239,9 @@
         <div class="main-panel pure-u-4-5 companionships">
           <div>
             Search: <input type="text" ng-model="compSearchText">
+          </div>
+          <div droppable="newCompanionship" class="new-companion-drop">
+            new companionship
           </div>
           <companionship comp="comp" ng-repeat="comp in companionships|toArray|filterCompanionships:compSearchText"></companionship>
         </div>

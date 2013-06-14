@@ -681,6 +681,7 @@ app.directive('draggable', function() {
     link: function(scope, element, attrs) {
       element.draggable({
         revert: true,
+        revertDuration: 100,
         zIndex: 100,
       });
     }
@@ -729,6 +730,16 @@ app.controller('OrganizeCtrl', function($scope, Store, Organizer) {
       var teacher = $scope.teachers[id];
       Organizer.excludeTeacher(teacher);
     } 
+  }
+
+  $scope.newCompanionship = function(kind, id) {
+    if (kind == 'family') {
+      var comp = Organizer.createCompanionship();
+      Organizer.addFamily(comp, $scope.families[id]);
+    } else if (kind == 'teacher') {
+      var comp = Organizer.createCompanionship();
+      Organizer.addCompanion(comp, $scope.teachers[id]);
+    }
   }
 
   $scope.clearChanges = function() {
