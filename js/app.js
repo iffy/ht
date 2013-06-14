@@ -86,6 +86,9 @@ app.filter('filterCompanionships', function($filter, Store) {
   }
   return function(items, text) {
     return items.filter(function(item) {
+      if (item == undefined) {
+        return false;
+      }
       var matching_families = $filter('filter')(
         lookupArray(item.families, Store.state.families), text);
       if (matching_families.length) {
@@ -97,6 +100,14 @@ app.filter('filterCompanionships', function($filter, Store) {
     })
   }
 })
+
+app.filter('nodistrict', function() {
+  return function(items) {
+    return items.filter(function(item) {
+      return item.district == null;
+    });
+  };
+});
 
 app.factory('Store', function() {
   this.state = {
@@ -130,6 +141,7 @@ app.factory('Store', function() {
         this.state[k] = loaded[k];
       }
     }
+    console.log(this.state);
   };
   this.nextId = function() {
     this.state.lastid += 1;
@@ -581,6 +593,36 @@ app.factory('Organizer', function(Store) {
     }
     this.addFamily(companionship, family);
   }
+
+  this.createDistrict = function() {
+    var district = {
+      id: Store.nextId(),
+      companionships: {},
+      leader: null,
+      name: null
+    }
+    Store.state.districts[district.id] = district;
+    Store.save();
+    return district;
+  };
+
+  this.unassignDistrict = function(companionship) {
+    if (companionship.district) {
+      var old_district = Store.state.districts[companionship.district];
+      delete old_district.companionships[companionship.id];
+    }
+    companionship.district = null;
+    Store.save();
+  }
+
+  this.assignToDistrict = function(companionship, district) {
+    this.unassignDistrict(companionship);
+
+    companionship.district = district.id;
+    district.companionships[companionship.id] = true;
+    Store.save();
+  }
+
   return this;
 });
 
@@ -623,10 +665,48 @@ app.directive('family', function(Store, Organizer) {
   }
 });
 
+
+app.directive('district', function(Store, Organizer) {
+  return {
+    restrict: 'E',
+    template: '<div class="district" droppable="receiveDrop">' +
+      '<companionship comp="comp" ng-repeat="comp in companionships|toArray|filterCompanionships:searchtext"></companionship>' +
+      '</div>',
+    scope: {
+      district: '=',
+      searchtext: '@'
+    },
+    controller: function($scope) {
+      $scope.companionships = {};
+
+      $scope.$watch('district.companionships', function() {
+        $scope.companionships = {};
+        for (id in $scope.district.companionships) {
+          $scope.companionships[id] = Store.state.companionships[id];
+        }
+      }, true);
+
+      $scope.receiveDrop = function(kind, id) {
+        if (kind == 'companionship') {
+          Organizer.assignToDistrict(Store.state.companionships[id], $scope.district);
+        } else if (kind == 'teacher') {
+          var companionship = Organizer.createCompanionship();
+          Organizer.addCompanion(companionship, Store.state.teachers[id]);
+          Organizer.assignToDistrict(companionship, $scope.district);
+        } else if (kind == 'family') {
+          var companionship = Organizer.createCompanionship();
+          Organizer.addFamily(companionship, Store.state.families[id]);
+          Organizer.assignToDistrict(companionship, $scope.district);
+        }
+      }
+    }
+  }
+})
+
 app.directive('companionship', function(Store, Organizer) {
   return {
     restrict: 'E',
-    template: '<div class="companionship" ng-class="{\'need-companion\': needCompanion(), \'extra-companion\': extraCompanion(), \'need-family\': needFamily()}" droppable="receiveDrop">' +
+    template: '<div class="companionship" draggable data-kind="companionship" data-id="{{ comp.id }}" ng-class="{\'need-companion\': needCompanion(), \'extra-companion\': extraCompanion(), \'need-family\': needFamily()}" droppable="receiveDrop">' +
         '<teacher obj="teacher" ng-repeat="teacher in teachers"></teacher>' +
         '<family fam="fam" ng-repeat="fam in families"></family>' +
       '</div>',
@@ -711,6 +791,7 @@ app.controller('OrganizeCtrl', function($scope, Store, Organizer) {
   $scope.families = Store.state.families;
   $scope.companionships = Store.state.companionships;
   $scope.changes = Store.state.changes;
+  $scope.districts = Store.state.districts;
 
   $scope.unassign = function(kind, id) {
     if (kind == 'family') {
@@ -740,6 +821,10 @@ app.controller('OrganizeCtrl', function($scope, Store, Organizer) {
       var comp = Organizer.createCompanionship();
       Organizer.addCompanion(comp, $scope.teachers[id]);
     }
+  }
+
+  $scope.createDistrict = function() {
+    Organizer.createDistrict();
   }
 
   $scope.clearChanges = function() {

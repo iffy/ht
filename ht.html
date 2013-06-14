@@ -80,6 +80,18 @@
     opacity: 0.5;
   }
 
+  .district {
+    background: #eee;
+    margin-bottom: 1em;
+    padding: 1em;
+  }
+  .district.drop-hover {
+    background: #ccc;
+  }
+  .district .title {
+    border: 0;
+  }
+
   .companionship.drop-hover {
     border-color: #000;
   }
@@ -92,9 +104,10 @@
 
   .new-companion-drop,
   .companionship {
+    background: #fff;
     display: inline-block;
     vertical-align: top;
-    border: 5px solid #ccc;
+    border: 5px solid #fff;
     padding: 1em;
     margin: 0.5em;
     width: 16em;
@@ -105,6 +118,7 @@
   .new-companion-drop {
     width: 120px;
     height: 120px;
+    background: #eee;
     text-align: center;
     vertical-align: middle;
   }
@@ -127,7 +141,7 @@
   .side-panel .inner {
     padding: 1em;
     border-right: 5px solid #ccc;
-    margin-right: 1em;
+    margin-right: 0em;
   }
   .main-panel {
     border: 0px solid #000;
@@ -238,13 +252,16 @@
         </div>
 
         <div class="main-panel pure-u-4-5 companionships">
-          <div>
+          <div style="margin-left: 1em;">
             <input type="text" ng-model="compSearchText" placeholder="search companionships">
+            <button class="pure-button" ng-click="createDistrict()">Create District</button>
           </div>
           <div droppable="newCompanionship" class="new-companion-drop">
             new companionship
           </div>
-          <companionship comp="comp" ng-repeat="comp in companionships|toArray|filterCompanionships:compSearchText"></companionship>
+          <district district="district" searchtext="{{ compSearchText }}" ng-repeat="district in districts">
+          </district>
+          <companionship comp="comp" ng-repeat="comp in companionships|toArray|nodistrict|filterCompanionships:compSearchText"></companionship>
         </div>
 
       </div>
