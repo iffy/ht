@@ -4,15 +4,20 @@
   <title>Home Teaching</title>
   <link rel="stylesheet" href="css/pure-min.css">
   <style>
+  .list-item {
+    margin: 0.3em;
+    padding: 1em;
+    border-radius: 2px; 
+  }
   .teacher {
-    margin: 0.2em;
-    padding: 0.3em;
+    margin: 0.3em;
+    padding: 1em;
     background: skyblue;
     border-radius: 2px;
   }
   .family {
-    margin: 0.2em;
-    padding: 0.3em;
+    margin: 0.3em;
+    padding: 1em;
     background: khaki;
     border-radius: 2px;
   }
@@ -21,13 +26,25 @@
     height: 80px;
     width: 80px;
     display: inline-block;
+    vertical-align: top;
   }
 
-  .scroller {
-    overflow: scroll;
+  h1,h2,h3,h4,h5 {
+    margin-left: 0.3em;
+  }
+
+  .navbar {
+    margin: 1em;
+  }
+  
+
+  .choice {
+    color: #999;
+    background: #eee;
   }
   .selected {
-    background: #999;
+    background: #f90;
+    color: #000;
   }
 
   .section {
@@ -55,12 +72,12 @@
   }
 
   .companionship.drop-hover {
-    box-shadow: 0px 0px 12px #ccc;
-    -webkit-transform: scale(1.1);
+    border-color: #000;
   }
 
   .companionship {
     display: inline-block;
+    vertical-align: top;
     border: 5px solid #ccc;
     padding: 1em;
     margin: 0.5em;
@@ -83,10 +100,10 @@
   }
 
   .side-panel {
-    box-shadow: 0px 0px 12px #ccc;
   }
   .side-panel .inner {
     padding: 1em;
+    border-right: 5px solid #ccc;
   }
   .main-panel {
     border: 0px solid #000;
@@ -136,15 +153,18 @@
         <div class="pure-u-1-2">
           <h3>Families</h3>
           <button class="pure-button" ng-click="refreshFamilyList()">Refresh</button>
-          <div class="scroller">
+          <div>
             <div class="family" ng-repeat="family in families| orderBy:'name'" ng-class="{excluded: family.other_group!=null}" ng-click="toggleFamilyInclusion(family)">{{ family.name }}</div>
           </div>
         </div>
         <div class="pure-u-1-2">
           <h3>Home Teachers</h3>
-          <div ng-repeat="group in possible_groups" ng-click="toggleGroup(group)" ng-class="{selected: usingGroup(group)}">{{ group.name }}</div>
           <button class="pure-button" ng-click="refreshTeacherList()">Refresh</button>
-          <div class="scroller">
+          <h4>Included groups</h4>
+          <div ng-repeat="group in possible_groups" ng-click="toggleGroup(group)" class="list-item choice" ng-class="{selected: usingGroup(group)}">{{ group.name }}</div>
+          <h4>Available teachers</h4>
+          <div>
+            <div class="teacher" ng-repeat="teacher in teachers" ng-class="{excluded: teacher.other_group!=null}" ng-click="toggleTeacherInclusion(teacher)">{{ teacher.name }}</div>
           </div>
         </div>
       </div>

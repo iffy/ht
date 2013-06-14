@@ -267,34 +267,9 @@ app.controller('ListCtrl', function($scope, $location, Store, LDSorg, Organizer)
     LDSorg.fetchOrganizations(teacher_groups).then(function(x) {
       console.log('Orgs fetched');
       console.log(x);
-      return;
-      var existing = Object.keys($scope.families).filter(function(x) {
-        // exclude hand-added ones
-        return x.substr(0,2) != 'X.';
-      });
-      x.forEach(function(household) {
-        var id = '' + household.headOfHouseIndividualId;
-        if (existing.indexOf(id) != -1) {
-          existing.splice(existing.indexOf(id), 1);
-        }
-        if ($scope.families[id]) {
-          // already exists
-          $scope.families[id][name] = household.coupleName;
-        } else {
-          // new record
-          $scope.families[id] = {
-            id: id,
-            name: household.coupleName,
-            companionship: null,
-            other_group: null,
-          };
-        }
-      });
-      // remove ids not encountered
-      existing.forEach(function(id) {
-        Organizer.familyMoved($scope.families[id]);
-      });
-      Store.save();
+      x.forEach(function(item) {
+        Organizer.addTeacher(item.preferredName, item.individualId);
+      })
     })
   }
 
@@ -342,6 +317,16 @@ app.controller('ListCtrl', function($scope, $location, Store, LDSorg, Organizer)
       Organizer.excludeFamily(family);
     } else {
       family.other_group = null;
+      Store.save();
+    }
+  };
+
+  $scope.toggleTeacherInclusion = function(teacher) {
+    if (teacher.other_group == null) {
+      Organizer.excludeTeacher(teacher);
+    } else {
+      teacher.other_group = null;
+      Store.save();
     }
   };
 });
@@ -474,6 +459,19 @@ app.factory('Organizer', function(Store) {
     this.unassignTeacher(teacher);
     delete Store.state.teachers[teacher.id];
     Store.save();
+  }
+
+  this.addTeacher = function(name, id) {
+    if (id === null || id === undefined) {
+      id = Store.nextId();
+    }
+    id = '' + id;
+    Store.state.teachers[id] = {
+      id: id,
+      name: name,
+      companionship: null,
+      other_group: null
+    };
   }
 
   this.excludeFamily = function(family) {
