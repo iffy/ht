@@ -675,12 +675,13 @@ app.directive('district', function(Store, Organizer) {
         '<button class="pure-button" ng-click="hide=!hide"><span ng-show="hide">Expand</span><span ng-hide="hide">Collapse</span></button>' +
       '</div>' +
       '<div ng-hide="hide">' +
-        '<companionship comp="comp" ng-repeat="comp in companionships|toArray|filterCompanionships:searchtext"></companionship>' +
+        '<companionship comp="comp" hidefamilies="{{ hidefamilies }}" ng-repeat="comp in companionships|toArray|filterCompanionships:searchtext"></companionship>' +
       '</div>' +
       '</div>',
     scope: {
       district: '=',
-      searchtext: '@'
+      searchtext: '@',
+      hidefamilies: '@'
     },
     controller: function($scope) {
       $scope.companionships = {};
@@ -721,10 +722,13 @@ app.directive('companionship', function(Store, Organizer) {
     restrict: 'E',
     template: '<div class="companionship" draggable data-kind="companionship" data-id="{{ comp.id }}" ng-class="{\'need-companion\': needCompanion(), \'extra-companion\': extraCompanion(), \'need-family\': needFamily()}" droppable="receiveDrop">' +
         '<teacher obj="teacher" ng-repeat="teacher in teachers"></teacher>' +
+        '<div ng-hide="hidefamilies">' +
         '<family fam="fam" ng-repeat="fam in families"></family>' +
+        '</div>' +
       '</div>',
     scope: {
-      comp: '='
+      comp: '=',
+      hidefamilies: '@'
     },
     controller: function($scope) {
       $scope.teachers = {}

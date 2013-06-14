@@ -127,17 +127,20 @@
     vertical-align: middle;
   }
 
-  .need-companion {
-    border-color: #f90;
-    background: #f90;
+  
+  .extra-companion {
+    border-color: #08c;
+    background: #08c;
   }
   .need-family {
     border-color: #0f9;
     background: #0f9; 
+    border-color: rgb(202, 60, 60);
+    background: rgb(202, 60, 60);
   }
-  .extra-companion {
-    border-color: #08c;
-    background: #08c;
+  .need-companion {
+    border-color: #f90;
+    background: #f90;
   }
 
   .side-panel {
@@ -259,10 +262,11 @@
           <div style="margin-left: 1em;">
             <input type="text" ng-model="compSearchText" placeholder="search assigned">
             <button class="pure-button" ng-click="createDistrict()">Create District</button>
+            <button class="pure-button" ng-click="hidefamilies=!hidefamilies"><span ng-show="hidefamilies">Show</span><span ng-hide="hidefamilies">Hide</span> families</button>
           </div>
-          <district district="district" searchtext="{{ compSearchText }}" ng-repeat="district in districts">
+          <district district="district" hidefamilies="{{ hidefamilies }}" searchtext="{{ compSearchText }}" ng-repeat="district in districts">
           </district>
-          <companionship comp="comp" ng-repeat="comp in companionships|toArray|nodistrict|filterCompanionships:compSearchText"></companionship>
+          <companionship comp="comp" hidefamilies="{{ hidefamilies }}" ng-repeat="comp in companionships|toArray|nodistrict|filterCompanionships:compSearchText"></companionship>
         </div>
 
       </div>
