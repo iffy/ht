@@ -82,14 +82,18 @@
 
   .district {
     background: #eee;
-    margin-bottom: 1em;
+    margin-top: 1em;
     padding: 1em;
   }
   .district.drop-hover {
     background: #ccc;
   }
-  .district .title {
+  .district input.trans {
     border: 0;
+    background: none;
+    box-shadow: none;
+    font-size: 21px;
+    width: 8em;
   }
 
   .companionship.drop-hover {
@@ -253,11 +257,8 @@
 
         <div class="main-panel pure-u-4-5 companionships">
           <div style="margin-left: 1em;">
-            <input type="text" ng-model="compSearchText" placeholder="search companionships">
+            <input type="text" ng-model="compSearchText" placeholder="search assigned">
             <button class="pure-button" ng-click="createDistrict()">Create District</button>
-          </div>
-          <div droppable="newCompanionship" class="new-companion-drop">
-            new companionship
           </div>
           <district district="district" searchtext="{{ compSearchText }}" ng-repeat="district in districts">
           </district>

@@ -670,7 +670,14 @@ app.directive('district', function(Store, Organizer) {
   return {
     restrict: 'E',
     template: '<div class="district" droppable="receiveDrop">' +
-      '<companionship comp="comp" ng-repeat="comp in companionships|toArray|filterCompanionships:searchtext"></companionship>' +
+      '<div>' +
+        '<input type="text" class="trans" ng-model="district.name" placeholder="district name">' +
+        '<input type="text" class="trans" ng-model="district.leader" placeholder="leader">' +
+        '<button class="pure-button" ng-click="hide=!hide"><span ng-show="hide">Expand</span><span ng-hide="hide">Collapse</span></button>' +
+      '</div>' +
+      '<div ng-hide="hide">' +
+        '<companionship comp="comp" ng-repeat="comp in companionships|toArray|filterCompanionships:searchtext"></companionship>' +
+      '</div>' +
       '</div>',
     scope: {
       district: '=',
@@ -685,6 +692,13 @@ app.directive('district', function(Store, Organizer) {
           $scope.companionships[id] = Store.state.companionships[id];
         }
       }, true);
+
+      $scope.$watch('district.name', function() {
+        Store.save();
+      });
+      $scope.$watch('district.leader', function() {
+        Store.save();
+      });
 
       $scope.receiveDrop = function(kind, id) {
         if (kind == 'companionship') {
@@ -811,16 +825,6 @@ app.controller('OrganizeCtrl', function($scope, Store, Organizer) {
       var teacher = $scope.teachers[id];
       Organizer.excludeTeacher(teacher);
     } 
-  }
-
-  $scope.newCompanionship = function(kind, id) {
-    if (kind == 'family') {
-      var comp = Organizer.createCompanionship();
-      Organizer.addFamily(comp, $scope.families[id]);
-    } else if (kind == 'teacher') {
-      var comp = Organizer.createCompanionship();
-      Organizer.addCompanion(comp, $scope.teachers[id]);
-    }
   }
 
   $scope.createDistrict = function() {
