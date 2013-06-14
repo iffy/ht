@@ -127,6 +127,7 @@
   .side-panel .inner {
     padding: 1em;
     border-right: 5px solid #ccc;
+    margin-right: 1em;
   }
   .main-panel {
     border: 0px solid #000;
@@ -200,19 +201,19 @@
 
       <navbar></navbar>
 
-      <div class="pure-g organizer">
+      <div class="pure-g organizer pure-form">
 
         <div class="side-panel pure-u-1-5">
           <div class="inner">
             <div class="section">
-              Search: <input type="text" ng-model="searchText">
+              <input type="text" ng-model="searchText" placeholder="search unassigned">
             </div>
 
             <div class="section" droppable="unassign" ng-class="{collapsed: hide_unassigned}">
               <h2 ng-click="hide_unassigned=!hide_unassigned">Unassigned</h2>
               <div ng-hide="hide_unassigned" class="body">
-                <teacher obj="teacher" ng-repeat="teacher in teachers|toArray|filter:searchText|unassigned|orderBy:'name'"></teacher>
-                <family fam="fam" ng-repeat="fam in families|toArray|filter:searchText|unassigned|orderBy:'name'"></family>
+                <teacher obj="teacher" ng-repeat="teacher in teachers|toArray|filter:searchText|unassigned|orderBy:'name'|limitTo:4"></teacher>
+                <family fam="fam" ng-repeat="fam in families|toArray|filter:searchText|unassigned|orderBy:'name'|limitTo:4"></family>
               </div>
             </div>
 
@@ -238,7 +239,7 @@
 
         <div class="main-panel pure-u-4-5 companionships">
           <div>
-            Search: <input type="text" ng-model="compSearchText">
+            <input type="text" ng-model="compSearchText" placeholder="search companionships">
           </div>
           <div droppable="newCompanionship" class="new-companion-drop">
             new companionship
