@@ -141,7 +141,6 @@ app.factory('Store', function() {
         this.state[k] = loaded[k];
       }
     }
-    console.log(this.state);
   };
   this.nextId = function() {
     this.state.lastid += 1;
@@ -226,7 +225,6 @@ app.factory('LDSorg', function($http, $q, Store) {
         var id = ids.shift();
         if (Store.state.lds.photoURLs[id]) {
           // we already have it
-          console.log('not fetching; we already have it');
         } else {
           set.push(id);
         }
@@ -402,6 +400,7 @@ app.filter('niceChange', function(Store) {
         return obj.name + ' is no longer assigned.';
       } else {
         var companionship = state.companionships[x.newval];
+
         if (x.kind == 'family') {
           var teachers = [];
           for (id in companionship.teachers) {
