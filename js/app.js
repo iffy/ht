@@ -28,27 +28,73 @@ app.config(function($routeProvider, $locationProvider) {
     });
 });
 
+app.filter('toArray', function() {
+  return function(obj) {
+    var ret = [];
+    for (k in obj) {
+      ret.push(obj[k]);
+    };
+    return ret;
+  }
+});
+
+app.filter('fuzzyFilter', function($filter) {
+  return function(array, text) {
+    if (!(array instanceof Array)) return array;
+    var parts = (text || '').split(' ');
+    var ret = [];
+    var notmatched = angular.copy(array);
+    parts.forEach(function(textpart) {
+      var matches = $filter('filter')(notmatched, textpart);
+      var thisnotmatched = [];
+      notmatched.forEach(function(item) {
+        if (matches.indexOf(item) !== -1) {
+          ret.push(item);
+        } else {
+          thisnotmatched.push(item);
+        }
+      })
+      notmatched = thisnotmatched;
+    });
+    return ret;
+  }
+})
+
 app.filter('unassigned', function() {
   return function(items) {
-    var ret = {};
-    for (k in items) {
-      if (items[k].companionship == null && items[k].other_group == null) {
-        ret[k] = items[k];
-      }
-    }
-    return ret;
+    return items.filter(function(item) {
+      return item.companionship == null && item.other_group == null;
+    });
   };
 });
 
-app.filter('notincluded', function() {
-  return function(items) {
-    var ret = {};
-    for (k in items) {
-      if (items[k].other_group == 'excluded') {
-        ret[k] = items[k];
-      }
+app.filter('inGroup', function() {
+  return function(items, group) {
+    return items.filter(function(item) {
+      return item.other_group == group;
+    })
+  }
+});
+
+app.filter('filterCompanionships', function($filter, Store) {
+  function lookupArray(obj, data_src) {
+    var ret = [];
+    for (k in obj) {
+      ret.push(data_src[k]);
     }
     return ret;
+  }
+  return function(items, text) {
+    return items.filter(function(item) {
+      var matching_families = $filter('filter')(
+        lookupArray(item.families, Store.state.families), text);
+      if (matching_families.length) {
+        return true;
+      }
+      var matching_teachers = $filter('filter')(
+        lookupArray(item.teachers, Store.state.teachers), text);
+      return matching_teachers.length;
+    })
   }
 })
 
@@ -138,7 +184,6 @@ app.factory('LDSorg', function($http, $q, Store) {
   this._fetchOrganization = function(name) {
     return $http.get('https://www.lds.org/directory/services/ludrs/1.1/unit/roster/' + Store.state.lds.wardUnitNo + '/' + name)
         .then(function(response) {
-          console.log(response.data);
           return response.data;
         });
   }
@@ -265,8 +310,6 @@ app.controller('ListCtrl', function($scope, $location, Store, LDSorg, Organizer)
   $scope.refreshTeacherList = function() {
     var teacher_groups = Object.keys($scope.teacher_groups);
     LDSorg.fetchOrganizations(teacher_groups).then(function(x) {
-      console.log('Orgs fetched');
-      console.log(x);
       x.forEach(function(item) {
         Organizer.addTeacher(item.preferredName, item.individualId);
       })

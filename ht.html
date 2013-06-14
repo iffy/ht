@@ -27,6 +27,7 @@
     width: 80px;
     display: inline-block;
     vertical-align: top;
+    border-radius: 4px;
   }
 
   h1,h2,h3,h4,h5 {
@@ -81,8 +82,7 @@
     border: 5px solid #ccc;
     padding: 1em;
     margin: 0.5em;
-    min-width: 8em;
-    max-width: 200px;
+    width: 16em;
     border-radius: 1em;
     transition: all 0.2s;
   }
@@ -181,19 +181,23 @@
 
         <div class="side-panel pure-u-1-5">
           <div class="inner">
+            <div class="section">
+              Search: <input type="text" ng-model="searchText">
+            </div>
+
             <div class="section" droppable="unassign" ng-class="{collapsed: hide_unassigned}">
               <h2 ng-click="hide_unassigned=!hide_unassigned">Unassigned</h2>
               <div ng-hide="hide_unassigned">
-                <teacher obj="teacher" ng-repeat="teacher in teachers|unassigned"></teacher>
-                <family fam="fam" ng-repeat="fam in families|unassigned"></family>
+                <teacher obj="teacher" ng-repeat="teacher in teachers|toArray|filter:searchText|unassigned"></teacher>
+                <family fam="fam" ng-repeat="fam in families|toArray|filter:searchText|unassigned"></family>
               </div>
             </div>
 
             <div class="section" droppable="exclude" ng-class="{collapsed: !show_excluded}">
               <h2 ng-click="show_excluded=!show_excluded">Not currently included</h2>
               <div ng-show="show_excluded">
-                <teacher obj="teacher" ng-repeat="teacher in teachers|notincluded"></teacher>
-                <family fam="fam" ng-repeat="fam in families|notincluded"></family>
+                <teacher obj="teacher" ng-repeat="teacher in teachers|toArray|filter:searchText|inGroup:'excluded'"></teacher>
+                <family fam="fam" ng-repeat="fam in families|toArray|filter:searchText|inGroup:'excluded'"></family>
               </div>
             </div>
 
@@ -210,7 +214,10 @@
         </div>
 
         <div class="main-panel pure-u-4-5 companionships">
-          <companionship comp="comp" ng-repeat="comp in companionships"></companionship>
+          <div>
+            Search: <input type="text" ng-model="compSearchText">
+          </div>
+          <companionship comp="comp" ng-repeat="comp in companionships|toArray|filterCompanionships:compSearchText"></companionship>
         </div>
 
       </div>
