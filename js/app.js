@@ -60,6 +60,14 @@ app.factory('Store', function() {
     families: {},
     changes: {},
     photos: {},
+    teacher_groups: {},
+    possible_groups: [
+      {id: 'HIGH_PRIEST', name:'High Priest'},
+      {id: 'ELDER', name: 'Elders'},
+      {id: 'PRIEST', name: 'Priest'},
+      {id: 'TEACHER', name: 'Teacher'},
+      {id: 'DEACON', name: 'Deacon'},
+    ],
     lds: {
       wardUnitNo: null,
       members: [],
@@ -127,6 +135,28 @@ app.factory('LDSorg', function($http, $q, Store) {
         });
     }.bind(this));
   };
+  this._fetchOrganization = function(name) {
+    return $http.get('https://www.lds.org/directory/services/ludrs/1.1/unit/roster/' + Store.state.lds.wardUnitNo + '/' + name)
+        .then(function(response) {
+          console.log(response.data);
+          return response.data;
+        });
+  }
+  this.fetchOrganizations = function(names) {
+    if (names.length == 0) {
+      var d = $q.defer();
+      d.resolve([]);
+      return d.promise;
+    }
+    var name = names.shift();
+    return this._fetchOrganization(name)
+      .then(function(data) {
+        return this.fetchOrganizations(names)
+          .then(function(other) {
+            return data.concat(other);
+          }.bind(this));
+      }.bind(this));
+  }
 
 
   this.loadPhotos = function(ids) {
@@ -174,15 +204,70 @@ app.factory('LDSorg', function($http, $q, Store) {
 })
 
 
-app.controller('ListCtrl', function($scope, $location, Store, LDSorg) {
+app.controller('ListCtrl', function($scope, $location, Store, LDSorg, Organizer) {
   $scope.teachers = Store.state.teachers;
   $scope.families = Store.state.families;
   $scope.teacher_list = '';
   $scope.family_list = '';
+  $scope.teacher_groups = Store.state.teacher_groups;
+  $scope.possible_groups = Store.state.possible_groups;
   $scope.lds = Store.state.lds;
+
+  $scope.toggleGroup = function(group) {
+    if ($scope.teacher_groups[group.id]) {
+      delete $scope.teacher_groups[group.id];
+    } else {
+      $scope.teacher_groups[group.id] = group.id;
+    }
+    Store.save();
+  }
+
+  $scope.usingGroup = function(group) {
+    if ($scope.teacher_groups[group.id] == undefined) {
+      return false;
+    } else {
+      return true;
+    }
+  }
 
   $scope.refreshFamilyList = function() {
     LDSorg.fetchFamilies().then(function(x) {
+      var existing = Object.keys($scope.families).filter(function(x) {
+        // exclude hand-added ones
+        return x.substr(0,2) != 'X.';
+      });
+      x.forEach(function(household) {
+        var id = '' + household.headOfHouseIndividualId;
+        if (existing.indexOf(id) != -1) {
+          existing.splice(existing.indexOf(id), 1);
+        }
+        if ($scope.families[id]) {
+          // already exists
+          $scope.families[id][name] = household.coupleName;
+        } else {
+          // new record
+          $scope.families[id] = {
+            id: id,
+            name: household.coupleName,
+            companionship: null,
+            other_group: null,
+          };
+        }
+      });
+      // remove ids not encountered
+      existing.forEach(function(id) {
+        Organizer.familyMoved($scope.families[id]);
+      });
+      Store.save();
+    })
+  }
+
+  $scope.refreshTeacherList = function() {
+    var teacher_groups = Object.keys($scope.teacher_groups);
+    LDSorg.fetchOrganizations(teacher_groups).then(function(x) {
+      console.log('Orgs fetched');
+      console.log(x);
+      return;
       var existing = Object.keys($scope.families).filter(function(x) {
         // exclude hand-added ones
         return x.substr(0,2) != 'X.';
@@ -252,6 +337,13 @@ app.controller('ListCtrl', function($scope, $location, Store, LDSorg) {
       return 'https://www.lds.org' + item.medium;
     }
   }
+  $scope.toggleFamilyInclusion = function(family) {
+    if (family.other_group == null) {
+      Organizer.excludeFamily(family);
+    } else {
+      family.other_group = null;
+    }
+  };
 });
 
 app.filter('niceChange', function(Store) {

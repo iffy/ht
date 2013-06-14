@@ -25,7 +25,9 @@
 
   .scroller {
     overflow: scroll;
-    height: 24em;
+  }
+  .selected {
+    background: #999;
   }
 
   .section {
@@ -101,6 +103,10 @@
     color: #fff;
     background: #08c;
   }
+
+  .excluded {
+    opacity: 0.5;
+  }
   </style>
 </head>
 <body ng-app="hometeaching" data-ng-csp>
@@ -131,12 +137,13 @@
           <h3>Families</h3>
           <button class="pure-button" ng-click="refreshFamilyList()">Refresh</button>
           <div class="scroller">
-            <div ng-repeat="family in families| orderBy:'name'">{{ family.name }}</div>
+            <div class="family" ng-repeat="family in families| orderBy:'name'" ng-class="{excluded: family.other_group!=null}" ng-click="toggleFamilyInclusion(family)">{{ family.name }}</div>
           </div>
         </div>
         <div class="pure-u-1-2">
           <h3>Home Teachers</h3>
-          <button class="pure-button">Refresh</button>
+          <div ng-repeat="group in possible_groups" ng-click="toggleGroup(group)" ng-class="{selected: usingGroup(group)}">{{ group.name }}</div>
+          <button class="pure-button" ng-click="refreshTeacherList()">Refresh</button>
           <div class="scroller">
           </div>
         </div>
