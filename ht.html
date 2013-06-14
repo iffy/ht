@@ -49,9 +49,13 @@
     color: #999;
     background: #eee;
   }
-  .selected {
+  .people .selected {
     background: #f90;
     color: #000;
+  }
+  .organizer .selected {
+    box-shadow: 0 0 0em 1em #0f0;
+    z-index: 200;
   }
 
   .section {
@@ -188,7 +192,7 @@
 
     <navbar></navbar>
 
-    <div class="section">
+    <div class="section people">
       <h2>Import from lds.org</h2>
       <p>
         You must <a href="https://signin.lds.org/SSOSignIn/" target="_blank">sign in to lds.org</a> before these buttons work.
@@ -261,8 +265,8 @@
         <div class="main-panel pure-u-4-5 companionships">
           <div style="margin-left: 1em;">
             <input type="text" ng-model="compSearchText" placeholder="search assigned">
-            <button class="pure-button" ng-click="createDistrict()">Create District</button>
             <button class="pure-button" ng-click="hidefamilies=!hidefamilies"><span ng-show="hidefamilies">Show</span><span ng-hide="hidefamilies">Hide</span> families</button>
+            <button class="pure-button" ng-click="createDistrict()">Create District</button>
           </div>
           <district district="district" hidefamilies="{{ hidefamilies }}" searchtext="{{ compSearchText }}" ng-repeat="district in districts">
           </district>

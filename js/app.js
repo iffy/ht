@@ -131,6 +131,9 @@ app.factory('Store', function() {
     },
     lastid: 1
   };
+  this.trans = {
+    selected_thing: null
+  };
   this.save = function() {
     localStorage['state'] = JSON.stringify(this.state);
   };
@@ -772,7 +775,7 @@ app.directive('companionship', function(Store, Organizer) {
   }
 });
 
-app.directive('draggable', function() {
+app.directive('draggable', function(Store) {
   return {
     restrict: 'A',
     link: function(scope, element, attrs) {
@@ -781,23 +784,71 @@ app.directive('draggable', function() {
         revertDuration: 100,
         zIndex: 100,
       });
+      element.click(function(ev) {
+        if (Store.trans.selected_thing == null) {
+          scope.$apply(function() {
+            Store.trans.selected_thing = element;
+          });
+          return false;
+        }
+      })
+    },
+    controller: function($scope, $element) {
+      $scope.trans = Store.trans;
+      $scope.$watch('trans.selected_thing', function() {
+        $scope.adjustClass();
+      });
+
+      $scope.adjustClass = function() {
+        if ($scope.trans.selected_thing
+            && $scope.trans.selected_thing == $element) {
+          $element.addClass('selected');
+        } else {
+          $element.removeClass('selected');
+        }
+      }
     }
   }
 });
 
-app.directive('droppable', function() {
+app.directive('droppable', function(Store) {
   return {
     restrict: 'A',
     link: function(scope, element, attrs) {
+      scope.dropFunc = function(elem) {
+        var id = $(elem).attr('data-id');
+        var kind = $(elem).attr('data-kind');
+        var func = scope[attrs.droppable];
+        func(kind, id);
+        scope.$apply();
+        Store.trans.selected_thing = null;
+      }
       $(element).droppable({
         drop: function(event, ui) {
-          var id = $(ui.draggable).attr('data-id');
+          return scope.dropFunc(ui.draggable);
+          /*var id = $(ui.draggable).attr('data-id');
           var kind = $(ui.draggable).attr('data-kind');
           var func = scope[attrs.droppable];
           func(kind, id);
           scope.$apply();
+          */
         },
         hoverClass: 'drop-hover'
+      });
+      element.click(function(ev) {
+        if (Store.trans.selected_thing != null) {
+          if (Store.trans.selected_thing == element) {
+            // same element
+          } else {
+            // different element
+            console.log('different');
+            scope.dropFunc(Store.trans.selected_thing);
+
+          }
+          console.log(element);
+          console.log('droppable clicked');
+          return false;
+        }
       });
     }
   }
