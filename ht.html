@@ -15,6 +15,12 @@
     background: skyblue;
     border-radius: 2px;
   }
+  .teacher .image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
   .family {
     margin: 0.3em;
     padding: 1em;
@@ -266,7 +272,8 @@
           <div style="margin-left: 1em;">
             <input type="text" ng-model="compSearchText" placeholder="search assigned">
             <button class="pure-button" ng-click="hidefamilies=!hidefamilies"><span ng-show="hidefamilies">Show</span><span ng-hide="hidefamilies">Hide</span> families</button>
-            <button class="pure-button" ng-click="createDistrict()">Create District</button>
+            <button class="pure-button" ng-click="createDistrict()">Create district</button>
+            <button class="pure-button" ng-click="loadPhotos()">Load photos</button>
           </div>
           <district district="district" hidefamilies="{{ hidefamilies }}" searchtext="{{ compSearchText }}" ng-repeat="district in districts">
           </district>

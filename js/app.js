@@ -38,28 +38,6 @@ app.filter('toArray', function() {
   }
 });
 
-app.filter('fuzzyFilter', function($filter) {
-  return function(array, text) {
-    if (!(array instanceof Array)) return array;
-    var parts = (text || '').split(' ');
-    var ret = [];
-    var notmatched = angular.copy(array);
-    parts.forEach(function(textpart) {
-      var matches = $filter('filter')(notmatched, textpart);
-      var thisnotmatched = [];
-      notmatched.forEach(function(item) {
-        if (matches.indexOf(item) !== -1) {
-          ret.push(item);
-        } else {
-          thisnotmatched.push(item);
-        }
-      })
-      notmatched = thisnotmatched;
-    });
-    return ret;
-  }
-})
-
 app.filter('unassigned', function() {
   return function(items) {
     return items.filter(function(item) {
@@ -116,7 +94,6 @@ app.factory('Store', function() {
     districts: {},
     families: {},
     changes: {},
-    photos: {},
     teacher_groups: {},
     possible_groups: [
       {id: 'HIGH_PRIEST', name:'High Priest'},
@@ -127,12 +104,12 @@ app.factory('Store', function() {
     ],
     lds: {
       wardUnitNo: null,
-      members: [],
     },
     lastid: 1
   };
   this.trans = {
-    selected_thing: null
+    selected_thing: null,
+    photos: {},
   };
   this.save = function() {
     localStorage['state'] = JSON.stringify(this.state);
@@ -222,13 +199,29 @@ app.factory('LDSorg', function($http, $q, Store) {
       while (ids.length && set.length < 20) {
         // don't fetch if we already have it
         var id = ids.shift();
-        if (Store.state.lds.photoURLs[id]) {
+        if (Store.trans.photos[id]) {
           // we already have it
         } else {
           set.push(id);
         }
       }
       return set;
+    }
+
+    // from http://stackoverflow.com/questions/934012/get-image-data-in-javascript
+    function getBase64Image(img) {
+      // Create an empty canvas element
+      var canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+
+      // Copy the image contents to the canvas
+      var ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+
+      var dataURL = canvas.toDataURL("image/png");
+      return dataURL;
+      //return dataURL.replace(/^data:image\/(png|jpg);base64,/, "");
     }
     
     var set = getSet();
@@ -243,14 +236,21 @@ app.factory('LDSorg', function($http, $q, Store) {
           x.data = [x.data];
         }
         x.data.forEach(function(x) {
-          Store.state.lds.photoURLs[x.individualId] = {
-            large: x.largeUri,
-            medium: x.mediumUri,
-            original: x.originalUri,
-            thumbnail: x.thumbnailUri,
-          }
+          var img = new Image();
+          img.onload = function() {
+            console.log('loaded image for ' + x.individualId);
+            b64 = getBase64Image(img);
+            console.log('converted to datauri');
+            Store.trans.photos[x.individualId] = b64;
+          };
+          img.src = 'https://www.lds.org' + x.mediumUri;
+          // Store.trans.photos[x.individualId] = {
+          //   large: x.largeUri,
+          //   medium: x.mediumUri,
+          //   original: x.originalUri,
+          //   thumbnail: x.thumbnailUri,
+          // }
         }.bind(this))
-        Store.save();
         return this.loadPhotos(ids);
       }.bind(this));
   }
@@ -353,9 +353,6 @@ app.controller('ListCtrl', function($scope, $location, Store, LDSorg, Organizer)
     Store.save();
   }
 
-  $scope.loadPhoto = function(id) {
-    LDSorg.loadPhotos([id]);
-  }
   $scope.imageSrc = function(lds_id) {
     var item = Store.state.lds.photoURLs[lds_id];
     if (item === undefined) {
@@ -628,7 +625,9 @@ app.factory('Organizer', function(Store) {
 app.directive('teacher', function(Store, Organizer) {
   return {
     restrict: 'E',
-    template: '<div class="teacher" draggable droppable="receiveDrop" data-kind="teacher" data-id="{{ teacher.id }}">{{ teacher.name }}</div>',
+    template: '<div class="teacher" draggable droppable="receiveDrop" data-kind="teacher" data-id="{{ teacher.id }}">' +
+        '<span ng-hide="hasPhoto()">{{ teacher.name }}</span><img class="image" ng-show="hasPhoto()" ng-src="{{ photo() }}">' +
+      '</div>',
     scope: {
       teacher: '=obj'
     },
@@ -642,6 +641,19 @@ app.directive('teacher', function(Store, Organizer) {
           console.log("I don't know what to do with that");
         }
       }
+
+      $scope.hasPhoto = function() {
+        return Store.trans.photos[$scope.teacher.id] ? true : false;
+      }
+
+      $scope.photo = function() {
+        var img = Store.trans.photos[$scope.teacher.id];
+        if (img) {
+          return img;
+        } else {
+          return false;
+        }
+      };
     }
   }
 });
@@ -850,7 +862,7 @@ app.directive('droppable', function(Store) {
   }
 });
 
-app.controller('OrganizeCtrl', function($scope, Store, Organizer) {
+app.controller('OrganizeCtrl', function($scope, Store, Organizer, LDSorg) {
   $scope.teachers = Store.state.teachers;
   $scope.families = Store.state.families;
   $scope.companionships = Store.state.companionships;
@@ -883,6 +895,11 @@ app.controller('OrganizeCtrl', function($scope, Store, Organizer) {
 
   $scope.clearChanges = function() {
     Organizer.clearChanges();
+  }
+
+  $scope.loadPhotos = function() {
+    console.log('loading photos');
+    LDSorg.loadPhotos(Object.keys($scope.teachers));
   }
 
 });
