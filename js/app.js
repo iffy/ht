@@ -15,16 +15,16 @@ app.config(function($routeProvider, $locationProvider) {
   $locationProvider.html5Mode(false).hashPrefix('');
 
   $routeProvider
-    .when('/list', {
+    .when('/people', {
       templateUrl: 'listTemplate.html',
       controller: 'ListCtrl',
     })
-    .when('/', {
+    .when('/organize', {
       templateUrl: 'organizeTemplate.html',
       controller: 'OrganizeCtrl',
     })
     .otherwise({
-      redirectTo: '/'
+      redirectTo: '/people'
     });
 });
 
@@ -163,10 +163,6 @@ app.directive('navbar', function() {
       }
     }
   }
-});
-
-app.controller('MainCtrl', function($scope, $location) {
-  //$location.path('/list');
 });
 
 
