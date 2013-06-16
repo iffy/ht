@@ -238,9 +238,7 @@ app.factory('LDSorg', function($http, $q, Store) {
         x.data.forEach(function(x) {
           var img = new Image();
           img.onload = function() {
-            console.log('loaded image for ' + x.individualId);
             b64 = getBase64Image(img);
-            console.log('converted to datauri');
             Store.trans.photos[x.individualId] = b64;
           };
           img.src = 'https://www.lds.org' + x.mediumUri;
@@ -399,8 +397,13 @@ app.filter('niceChange', function(Store) {
 
         if (x.kind == 'family') {
           var teachers = [];
-          for (id in companionship.teachers) {
-            teachers.push(state.teachers[id].name);
+          try {
+            for (id in companionship.teachers) {
+              teachers.push(state.teachers[id].name);
+            }
+          } catch(err) {
+            console.log('no companionship A:' + x.newval);
+            console.log(obj.name);
           }
           teachers = teachers.join(' and ');
           if (!teachers.length) {
@@ -409,10 +412,15 @@ app.filter('niceChange', function(Store) {
           return obj.name + ' is now being taught by ' + teachers;
         } else if (x.kind == 'teacher') {
           var companions = [];
-          for (id in companionship.teachers) {
-            if (id != x.id) {
-              companions.push(state.teachers[id].name);
+          try {
+            for (id in companionship.teachers) {
+              if (id != x.id) {
+                companions.push(state.teachers[id].name);
+              }
             }
+          } catch(err) {
+            console.log('no companionship B:' + x.newval)
+            console.log(obj.name);
           }
           companions = companions.join(' and ');
           if (!companions.length) {
@@ -537,6 +545,10 @@ app.factory('Organizer', function(Store) {
   }
 
   this.addCompanion = function(companionship, teacher) {
+    if (companionship.id === teacher.companionship) {
+      // no change
+      return;
+    }
     this.unassignTeacher(teacher);
 
     teacher.companionship = companionship.id;
@@ -567,6 +579,10 @@ app.factory('Organizer', function(Store) {
   }
 
   this.addFamily = function(companionship, family) {
+    if (family.companionship == companionship.id) {
+      // no change
+      return;
+    }
     this.unassignFamily(family);
 
     family.companionship = companionship.id;
@@ -823,24 +839,19 @@ app.directive('droppable', function(Store) {
   return {
     restrict: 'A',
     link: function(scope, element, attrs) {
-      scope.dropFunc = function(elem) {
+      var func = scope[attrs.droppable];
+      var dropFunc = function(func, elem) {
         var id = $(elem).attr('data-id');
         var kind = $(elem).attr('data-kind');
-        var func = scope[attrs.droppable];
         func(kind, id);
         scope.$apply();
         Store.trans.selected_thing = null;
-      }
+      }.bind(this, func);
       $(element).droppable({
         drop: function(event, ui) {
-          return scope.dropFunc(ui.draggable);
-          /*var id = $(ui.draggable).attr('data-id');
-          var kind = $(ui.draggable).attr('data-kind');
-          var func = scope[attrs.droppable];
-          func(kind, id);
-          scope.$apply();
-          */
+          return dropFunc(ui.draggable);
         },
+        greedy: true,
         hoverClass: 'drop-hover'
       });
       element.click(function(ev) {
@@ -849,12 +860,9 @@ app.directive('droppable', function(Store) {
             // same element
           } else {
             // different element
-            console.log('different');
-            scope.dropFunc(Store.trans.selected_thing);
+            dropFunc(Store.trans.selected_thing);
 
           }
-          console.log(element);
-          console.log('droppable clicked');
           return false;
         }
       });
@@ -898,7 +906,6 @@ app.controller('OrganizeCtrl', function($scope, Store, Organizer, LDSorg) {
   }
 
   $scope.loadPhotos = function() {
-    console.log('loading photos');
     LDSorg.loadPhotos(Object.keys($scope.teachers));
   }
 
