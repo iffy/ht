@@ -113,7 +113,7 @@ app.factory('Store', function() {
   };
   this.trans = {
     selected_thing: null,
-    photos: {},
+    photos: {}
   };
   this.save = function() {
     localStorage['state'] = JSON.stringify(this.state);
@@ -169,6 +169,7 @@ app.factory('LDSorg', function($http, $q, Store) {
           return x.data;
         }.bind(this), function(err) {
           alert('You need to log in to lds.org');
+          throw err;
         });
     }.bind(this));
   };
@@ -176,6 +177,9 @@ app.factory('LDSorg', function($http, $q, Store) {
     return $http.get('https://www.lds.org/directory/services/ludrs/1.1/unit/roster/' + Store.state.lds.wardUnitNo + '/' + name)
         .then(function(response) {
           return response.data;
+        }, function(err) {
+          alert('You need to log in to lds.org');
+          throw err;
         });
   }
   this.fetchOrganizations = function(names) {
@@ -254,7 +258,11 @@ app.factory('LDSorg', function($http, $q, Store) {
           // }
         }.bind(this))
         return this.loadPhotos(ids);
-      }.bind(this));
+      }.bind(this),
+      function(err) {
+        alert('You must be logged in to lds.org for this to work');
+        throw err;
+      });
   }
   return this;
 })
@@ -268,6 +276,7 @@ app.controller('ListCtrl', function($scope, $location, Store, LDSorg, Organizer)
   $scope.teacher_groups = Store.state.teacher_groups;
   $scope.possible_groups = Store.state.possible_groups;
   $scope.lds = Store.state.lds;
+  $scope.trans = Store.trans;
 
   $scope.toggleGroup = function(group) {
     if ($scope.teacher_groups[group.id]) {
@@ -324,35 +333,8 @@ app.controller('ListCtrl', function($scope, $location, Store, LDSorg, Organizer)
       x.forEach(function(item) {
         Organizer.addTeacher(item.preferredName, item.individualId);
       })
+      Store.save();
     })
-  }
-
-  $scope.updateTeachers = function() {
-    var teachers = $scope.teacher_list.split('\n');
-    teachers.map(function(name) {
-      var teacher = {
-        id: Store.nextId(),
-        name: name,
-        companionship: null,
-        other_group: null
-      };
-      $scope.teachers[teacher.id] = teacher;
-    });
-    Store.save();
-  }
-
-  $scope.updateFamilies = function() {
-    var families = $scope.family_list.split('\n');
-    families.map(function(name) {
-      var family = {
-        id: Store.nextId(),
-        name: name,
-        companionship: null,
-        other_group: null
-      };
-      $scope.families[family.id] = family;
-    });
-    Store.save();
   }
 
   $scope.imageSrc = function(lds_id) {
@@ -406,6 +388,8 @@ app.controller('DataCtrl', function($scope, $filter, Store) {
     reader.onload = function(x) {
       var data = angular.fromJson(reader.result);
       angular.extend(Store.state, data);
+      Store.save();
+      window.location.reload();
     };
     reader.readAsText(file);
   }
