@@ -23,6 +23,10 @@ app.config(function($routeProvider, $locationProvider) {
       templateUrl: 'organizeTemplate.html',
       controller: 'OrganizeCtrl',
     })
+    .when('/data', {
+      templateUrl: 'dataTemplate.html',
+      controller: 'DataCtrl',
+    })
     .otherwise({
       redirectTo: '/people'
     });
@@ -377,6 +381,35 @@ app.controller('ListCtrl', function($scope, $location, Store, LDSorg, Organizer)
     }
   };
 });
+
+app.controller('DataCtrl', function($scope, $filter, Store) {
+  $scope.dataURI = '';
+  $scope.filename = '';
+  $scope.state = Store.state;
+
+  $scope.$watch('state', function() {
+    // filename
+    var d = new Date();
+    d = $filter('date')(d, 'yyyyMMdd.HHmm');
+    $scope.filename = 'ht.' + d + '.json';
+
+    // file content
+    var blob = new Blob([angular.toJson(Store.state)], {type:'application/json'});
+    $scope.dataURI = window.webkitURL.createObjectURL(blob);
+  }, true);
+
+  $scope.loadFile = function(file_el) {
+    var files = document.getElementById(file_el).files;
+    var file = files[0];
+
+    var reader = new FileReader();
+    reader.onload = function(x) {
+      var data = angular.fromJson(reader.result);
+      angular.extend(Store.state, data);
+    };
+    reader.readAsText(file);
+  }
+})
 
 app.filter('niceChange', function(Store) {
   var state = Store.state;

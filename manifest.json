@@ -6,7 +6,9 @@
     "version": "1.0",
 
     "permissions": [
-        "activeTab", "https://www.lds.org/*", "http://www.lds.org/*"
+        "activeTab",
+        "https://www.lds.org/*",
+        "http://www.lds.org/*"
     ],
     "background": {
         "scripts": ["background.js"],

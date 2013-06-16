@@ -188,8 +188,9 @@
 
   <template name="navbar">
     <div class="navbar">
-      <button class="pure-button pure-button-nav" ng-click="nav('/organize')">Home Teaching</button>
       <button class="pure-button pure-button-nav" ng-click="nav('/people')">People</button>
+      <button class="pure-button pure-button-nav" ng-click="nav('/organize')">Assignments</button>
+      <button class="pure-button pure-button-nav" ng-click="nav('/data')">Save/Load</button>
     </div>
   </template>
 
@@ -225,6 +226,22 @@
       </div>
 
     </div>
+  </template>
+
+  <template name="dataTemplate">
+
+    <navbar></navbar>
+
+    <div class="section">
+      <h2>Save</h2>
+      <a href="{{ dataURI }}" download="{{ filename }}">Download {{ filename }}</a>
+    </div>
+
+    <div class="section">
+      <h2>Load</h2>
+      <input type="file" id="loadfileel"/>
+      <button class="pure-button" ng-click="loadFile('loadfileel')">Load</button>
+
   </template>
 
 
