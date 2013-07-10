@@ -27,6 +27,14 @@ app.config(function($routeProvider, $locationProvider) {
       templateUrl: 'dataTemplate.html',
       controller: 'DataCtrl',
     })
+    .when('/debug', {
+      templateUrl: 'debugTemplate.html',
+      controller: 'DebugCtrl',
+    })
+    .when('/groups', {
+      templateUrl: 'groupTemplate.html',
+      controller: 'GroupCtrl',
+    })
     .otherwise({
       redirectTo: '/people'
     });
@@ -98,6 +106,7 @@ app.factory('Store', function() {
     districts: {},
     families: {},
     changes: {},
+    groups: ['other quorum', 'not now', null],
     teacher_groups: {},
     possible_groups: [
       {id: 'HIGH_PRIEST', name:'High Priest'},
@@ -116,14 +125,12 @@ app.factory('Store', function() {
     photos: {}
   };
   this.save = function() {
-    localStorage['state'] = JSON.stringify(this.state);
+    localStorage['state'] = angular.toJson(this.state);
   };
   this.load = function() {
     if (localStorage['state'] != undefined) {
-      var loaded = JSON.parse(localStorage['state']);
-      for (k in loaded) {
-        this.state[k] = loaded[k];
-      }
+      var loaded = angular.fromJson(localStorage['state']);
+      angular.copy(loaded, this.state);
     }
   };
   this.nextId = function() {
@@ -277,6 +284,7 @@ app.controller('ListCtrl', function($scope, $location, Store, LDSorg, Organizer)
   $scope.possible_groups = Store.state.possible_groups;
   $scope.lds = Store.state.lds;
   $scope.trans = Store.trans;
+  $scope.loading = 0;
 
   $scope.toggleGroup = function(group) {
     if ($scope.teacher_groups[group.id]) {
@@ -296,6 +304,7 @@ app.controller('ListCtrl', function($scope, $location, Store, LDSorg, Organizer)
   }
 
   $scope.refreshFamilyList = function() {
+    $scope.loading += 1;
     LDSorg.fetchFamilies().then(function(x) {
       var existing = Object.keys($scope.families).filter(function(x) {
         // exclude hand-added ones
@@ -324,16 +333,25 @@ app.controller('ListCtrl', function($scope, $location, Store, LDSorg, Organizer)
         Organizer.familyMoved($scope.families[id]);
       });
       Store.save();
+    }).then(function() {
+      $scope.loading -= 1;
+    }, function() {
+      $scope.loading -= 1;
     })
   }
 
   $scope.refreshTeacherList = function() {
+    $scope.loading += 1;
     var teacher_groups = Object.keys($scope.teacher_groups);
     LDSorg.fetchOrganizations(teacher_groups).then(function(x) {
       x.forEach(function(item) {
         Organizer.addTeacher(item.preferredName, item.individualId);
       })
       Store.save();
+    }).then(function() {
+      $scope.loading -= 1;
+    }, function() {
+      $scope.loading -= 1;
     })
   }
 
@@ -347,7 +365,7 @@ app.controller('ListCtrl', function($scope, $location, Store, LDSorg, Organizer)
   }
   $scope.toggleFamilyInclusion = function(family) {
     if (family.other_group == null) {
-      Organizer.excludeFamily(family);
+      Organizer.excludeFamily(family, 'other quorum');
     } else {
       family.other_group = null;
       Store.save();
@@ -356,7 +374,7 @@ app.controller('ListCtrl', function($scope, $location, Store, LDSorg, Organizer)
 
   $scope.toggleTeacherInclusion = function(teacher) {
     if (teacher.other_group == null) {
-      Organizer.excludeTeacher(teacher);
+      Organizer.excludeTeacher(teacher, 'other quorum');
     } else {
       teacher.other_group = null;
       Store.save();
@@ -480,6 +498,30 @@ app.factory('Organizer', function(Store) {
     });
   };
 
+  this.fixOrphans = function() {
+    // I don't know the bug that causes me to need this
+    // companionships
+    angular.forEach(Store.state.companionships, function(companionship) {
+      this.maybeDeleteCompanionship(companionship);
+    }.bind(this));
+
+    // teachers
+    angular.forEach(Store.state.teachers, function(teacher) {
+      if (teacher.companionship != null
+          && !Store.state.companionships[teacher.companionship]) {
+        this.unassignTeacher(teacher);
+      }
+    }.bind(this));
+
+    // families
+    angular.forEach(Store.state.families, function(family) {
+      if (family.companionship != null
+          && !Store.state.companionships[family.companionship]) {
+        this.unassignFamily(family);
+      }
+    }.bind(this))
+  };
+
   this.assignTogether = function(staying, moving) {
     var companionship;
 
@@ -541,21 +583,33 @@ app.factory('Organizer', function(Store) {
       id = Store.nextId();
     }
     id = '' + id;
-    Store.state.teachers[id] = {
-      id: id,
-      name: name,
-      companionship: null,
-      other_group: null
-    };
+    if (Store.state.teachers[id]) {
+      // existing
+      Store.state.teachers[id].name = name;
+    } else {
+      // new
+      Store.state.teachers[id] = {
+        id: id,
+        name: name,
+        companionship: null,
+        other_group: null
+      };
+    }
   }
 
-  this.excludeFamily = function(family) {
+  this.excludeFamily = function(family, group) {
+    if (group == null || group === undefined) {
+      group = 'excluded';
+    }
     this.unassignFamily(family);
-    family.other_group = 'excluded';
+    family.other_group = group;
     Store.save();
   }
 
-  this.excludeTeacher = function(teacher) {
+  this.excludeTeacher = function(teacher, group) {
+    if (group == null || group === undefined) {
+      group = 'excluded';
+    }
     this.unassignTeacher(teacher);
     teacher.other_group = 'excluded';
     Store.save();
@@ -714,8 +768,8 @@ app.directive('district', function(Store, Organizer) {
     restrict: 'E',
     template: '<div class="district" droppable="receiveDrop">' +
       '<div>' +
-        '<input type="text" class="trans" ng-model="district.name" placeholder="district name">' +
-        '<input type="text" class="trans" ng-model="district.leader" placeholder="leader">' +
+        '<input type="text" class="trans" ng-model="district.name" placeholder="district name" size="20">' +
+        '<input type="text" class="trans" ng-model="district.leader" placeholder="leader" size="20">' +
         '<button class="pure-button" ng-click="hide=!hide"><span ng-show="hide">Expand</span><span ng-hide="hide">Collapse</span></button>' +
       '</div>' +
       '<div ng-hide="hide">' +
@@ -893,6 +947,7 @@ app.controller('OrganizeCtrl', function($scope, Store, Organizer, LDSorg) {
   $scope.companionships = Store.state.companionships;
   $scope.changes = Store.state.changes;
   $scope.districts = Store.state.districts;
+  Organizer.fixOrphans();
 
   $scope.unassign = function(kind, id) {
     if (kind == 'family') {
@@ -927,3 +982,78 @@ app.controller('OrganizeCtrl', function($scope, Store, Organizer, LDSorg) {
   }
 
 });
+
+app.controller('GroupCtrl', function($scope, Store, Organizer) {
+  $scope.teachers = Store.state.teachers;
+  $scope.families = Store.state.families;
+  $scope.groups = Store.state.groups;
+
+  $scope.actual_groups = [];
+
+  $scope.$watch('teachers', function() {
+    $scope.computeGroups();
+  }, true);
+  $scope.$watch('families', function() {
+    $scope.computeGroups();
+  }, true);
+
+  $scope.computeGroups = function() {
+    var groups = {};
+    angular.forEach($scope.groups, function(name) {
+      groups[name] = true;
+    });
+    angular.forEach($scope.teachers, function(teacher) {
+      groups[teacher.other_group] = true;
+    });
+    angular.forEach($scope.families, function(family) {
+      groups[family.other_group] = true;
+    });
+    if (groups['null']) {
+      delete groups['null'];
+    }
+    angular.copy(Object.keys(groups), $scope.actual_groups);
+    if (!groups[null]) {
+      $scope.actual_groups.push(null);
+    }
+    console.log($scope.actual_groups);
+    if ($scope.groups === undefined) {
+      $scope.groups = $scope.actual_groups;
+      Store.state.groups = $scope.groups;
+    } else {
+      angular.extend($scope.groups, $scope.actual_groups);
+    }
+    console.log($scope.groups);
+    Store.save();
+  }
+
+  $scope.addGroup = function(name) {
+    $scope.groups.push(name);
+    $scope.actual_groups.push(name);
+    Store.save();
+  }
+
+  $scope.moveTeacherToGroup = function(teacher, group) {
+    if (group === null || group === undefined) {
+      teacher.other_group = null;
+      Store.save();
+    } else {
+      Organizer.excludeTeacher(teacher, group);  
+    }
+  }
+  $scope.moveFamilyToGroup = function(family, group) {
+    if (group === null || group === undefined) {
+      family.other_group = null;
+      Store.save();
+    } else {
+      Organizer.excludeFamily(family, group)
+    }
+  }
+})
+
+app.controller('DebugCtrl', function($scope, Store) {
+  $scope.teachers = Store.state.teachers;
+  $scope.families = Store.state.families;
+  $scope.companionships = Store.state.companionships;
+  $scope.changes = Store.state.changes;
+  $scope.districts = Store.state.districts;
+})

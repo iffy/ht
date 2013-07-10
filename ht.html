@@ -4,6 +4,16 @@
   <title>Home Teaching</title>
   <link rel="stylesheet" href="css/pure-min.css">
   <style>
+  .loading {
+    padding: 3em 6em;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    background: #fff;
+    color: #000;
+    font-size: 30px;
+    border: 5px solid #08c;
+  }
   .list-item {
     margin: 0.3em;
     padding: 1em;
@@ -180,12 +190,6 @@
   .excluded {
     opacity: 0.5;
   }
-  .loading {
-    display: inline-block;
-    background: url('spinner.gif');
-    width: 16px;
-    height: 16px;
-  }
   </style>
 </head>
 <body ng-app="hometeaching" data-ng-csp>
@@ -197,7 +201,9 @@
     <div class="navbar">
       <button class="pure-button pure-button-nav" ng-click="nav('/people')">People</button>
       <button class="pure-button pure-button-nav" ng-click="nav('/organize')">Assignments</button>
+      <button class="pure-button pure-button-nav" ng-click="nav('/groups')">Groups</button>
       <button class="pure-button pure-button-nav" ng-click="nav('/data')">Save/Load</button>
+      <button class="pure-button" ng-click="nav('/debug')">Debugging</button>
     </div>
   </template>
 
@@ -205,6 +211,8 @@
   <template name="listTemplate">
 
     <navbar></navbar>
+
+    <div class="loading" ng-show="loading"><img src="spinner.gif"> Loading.  Waiting for {{loading}}.</div>
 
     <div class="section people">
       <h2>Import from lds.org</h2>
@@ -235,6 +243,29 @@
     </div>
   </template>
 
+  <template name="groupTemplate">
+
+    <navbar></navbar>
+
+    <input type="text" ng-model="new_group_name">
+    <button class="pure-button" ng-click="addGroup(new_group_name)">Add Group</button>
+
+    <div class="pure-g-r">
+      <div class="pure-u-1-4" ng-repeat="group in actual_groups|orderBy">
+        <h2>{{ group }}</h2>
+        <div class="list-item teacher pure-g" ng-repeat="teacher in teachers|toArray|inGroup:group|orderBy:'name'">
+          <div class="pure-u-1-2">{{ teacher.name }}</div>
+          <div class="pure-u-1-2"><select ng-model="teacher.other_group" ng-options="name for name in actual_groups"></select></div>
+        </div>
+        <div class="list-item family pure-g" ng-repeat="family in families|toArray|inGroup:group|orderBy:'name'">
+          <div class="pure-u-1-2">{{ family.name }}</div>
+          <div class="pure-u-1-2"><select ng-model="family.other_group" ng-options="name for name in actual_groups"></select></div>
+        </div>
+      </div>
+    </div>
+
+  </template>
+
   <template name="dataTemplate">
 
     <navbar></navbar>
@@ -248,6 +279,7 @@
       <h2>Load</h2>
       <input type="file" id="loadfileel"/>
       <button class="pure-button" ng-click="loadFile('loadfileel')">Load</button>
+    </div>
 
   </template>
 
@@ -299,12 +331,38 @@
             <button class="pure-button" ng-click="createDistrict()">Create district</button>
             <button class="pure-button" ng-click="loadPhotos()">Load photos</button>
           </div>
-          <district district="district" hidefamilies="{{ hidefamilies }}" searchtext="{{ compSearchText }}" ng-repeat="district in districts">
+          <district district="district" hidefamilies="{{ hidefamilies }}" searchtext="{{ compSearchText }}" ng-repeat="district in districts|toArray|orderBy:'name'">
           </district>
           <companionship comp="comp" hidefamilies="{{ hidefamilies }}" ng-repeat="comp in companionships|toArray|nodistrict|filterCompanionships:compSearchText"></companionship>
         </div>
 
       </div>
+
+  </template>
+
+  <template name="debugTemplate">
+
+    <navbar></navbar>
+
+    <h2 ng-click="hide_teachers=!hide_teachers">Teachers</h2>
+    <div class="section" ng-hide="hide_teachers">
+      <pre ng-repeat="teacher in teachers|toArray|orderBy:'name'">{{ teacher }}</pre>
+    </div>
+
+    <h2 ng-click="hide_families=!hide_families">Families</h2>
+    <div class="section" ng-hide="hide_families">
+      <pre ng-repeat="family in families|toArray|orderBy:'name'">{{ family }}</pre>
+    </div>
+
+    <h2 ng-click="hide_companionships=!hide_companionships">Companionships</h2>
+    <div class="section" ng-hide="hide_companionships">
+      <pre ng-repeat="comp in companionships|toArray|orderBy:'name'">{{ comp }}</pre>
+    </div>
+
+    <h2 ng-click="hide_districts=!hide_districts">Districts</h2>
+    <div class="section" ng-hide="hide_districts">
+      <pre ng-repeat="district in districts|toArray|orderBy:'name'">{{ district }}</pre>
+    </div>
 
   </template>
 
