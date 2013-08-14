@@ -299,8 +299,8 @@
             <div class="section" droppable="unassign" ng-class="{collapsed: hide_unassigned}">
               <h2 ng-click="hide_unassigned=!hide_unassigned">Unassigned</h2>
               <div ng-hide="hide_unassigned" class="body">
-                <teacher obj="teacher" ng-repeat="teacher in teachers|toArray|filter:searchText|unassigned|orderBy:'name'|limitTo:4"></teacher>
-                <family fam="fam" ng-repeat="fam in families|toArray|filter:searchText|unassigned|orderBy:'name'|limitTo:4"></family>
+                <teacher obj="teacher" ng-repeat="teacher in teachers|toArray|filter:searchText|unassigned|orderBy:'name'"></teacher>
+                <family fam="fam" ng-repeat="fam in families|toArray|filter:searchText|unassigned|orderBy:'name'"></family>
               </div>
             </div>
 
@@ -311,7 +311,7 @@
                 <family fam="fam" ng-repeat="fam in families|toArray|filter:searchText|inGroup:'excluded'|orderBy:'name'"></family>
               </div>
             </div>
-
+            
             <div class="section" ng-class="{collapsed: hide_changes}">
               <h2 ng-click="hide_changes=!hide_changes">Changes</h2>
               <div ng-hide="hide_changes" class="body">
